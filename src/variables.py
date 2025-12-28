@@ -1,0 +1,120 @@
+"""
+The variables file is for data that will be used throughout the project.  This could be static or
+dynamic data.  After being initial loaded by main.py, it can be imported and used in any module
+throughout the system.
+"""
+
+# ========================================================================================
+# UI Navigation
+# ========================================================================================
+
+PAGES = {
+    'Splash': 'Splash',
+    'Main': 'Main',
+}
+
+POPUPS = {
+    'Powering Down': 'Powering Down',
+    'Confirmation': 'Confirmation',
+    'Starting Up': 'Starting Up',
+    'Help': 'Help',
+}
+
+# ========================================================================================
+# DSP Configuration - DMP 128 FlexPlus
+# ========================================================================================
+
+# DSP Output Channel Assignments (to Amp - each output goes to a speaker zone)
+# Output 1: Gym
+# Output 2: Yoga Studio
+# Output 3: Terrace Gallery
+# Output 4: Party Room
+# Output 5: Courtyard
+DSP_OUTPUTS = {
+    'Gym': '1',
+    'YogaStudio': '2',
+    'TerraceGallery': '3',
+    'PartyRoom': '4',
+    'Courtyard': '5',
+}
+
+# DSP Analog Input Assignments
+# Analog Input 1: Music Player (BGM)
+DSP_ANALOG_INPUTS = {
+    'MusicPlayer': '1',
+}
+
+# DSP Dante Input Assignments
+# Dante 1-4: Yoga Studio BT/Aux Wall Plate
+# Dante 5-8: Party Room BT Wall Plate
+# Dante 9: Yoga Studio TV Audio
+# Dante 10: Terrace Gallery TV 1 Audio
+# Dante 11: Terrace Gallery TV 2 Audio
+# Dante 12: Party Room TV Audio
+DSP_DANTE_INPUTS = {
+    'BTPlate_YogaStudio_1': '1',
+    'BTPlate_YogaStudio_2': '2',
+    'BTPlate_YogaStudio_3': '3',
+    'BTPlate_YogaStudio_4': '4',
+    'BTPlate_PartyRoom_1': '5',
+    'BTPlate_PartyRoom_2': '6',
+    'BTPlate_PartyRoom_3': '7',
+    'BTPlate_PartyRoom_4': '8',
+    'YogaStudioTV': '9',
+    'TerraceGalleryTV1': '10',
+    'TerraceGalleryTV2': '11',
+    'PartyRoomTV': '12',
+}
+
+# Combined input references for routing (type indicates Analog or Dante)
+DSP_INPUTS = {
+    'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+    'BTPlate_YogaStudio': {'Type': 'Dante', 'Channels': ['1', '2', '3', '4']},  # Multi-channel
+    'BTPlate_PartyRoom': {'Type': 'Dante', 'Channels': ['5', '6', '7', '8']},   # Multi-channel
+    'YogaStudioTV': {'Type': 'Dante', 'Channel': '9'},
+    'TerraceGalleryTV1': {'Type': 'Dante', 'Channel': '10'},
+    'TerraceGalleryTV2': {'Type': 'Dante', 'Channel': '11'},
+    'PartyRoomTV': {'Type': 'Dante', 'Channel': '12'},
+}
+
+# Audio Source Mapping for each room (for source selection buttons)
+AUDIO_SOURCES = {
+    'PartyRoom': {
+        'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+        'BTPlate': {'Type': 'Dante', 'Channels': ['5', '6', '7', '8']},
+    },
+    'YogaStudio': {
+        'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+        'BTPlate': {'Type': 'Dante', 'Channels': ['1', '2', '3', '4']},
+    },
+}
+
+# Volume ranges (DSP uses -100 to 0 dB typically, UI slider 0-100)
+VOLUME_MIN = 0
+VOLUME_MAX = 100
+DSP_VOLUME_MIN = -100  # dB
+DSP_VOLUME_MAX = 0     # dB
+
+# ========================================================================================
+# Display Configuration
+# ========================================================================================
+
+DISPLAY_DEFAULT_INPUT = 'HDMI 1'
+
+# Input options for Samsung displays (QBxxC series)
+DISPLAY_INPUTS_QB = {
+    'HDMI1': 'HDMI 1',
+    'HDMI2': 'HDMI 2',
+    'HDMI3': 'HDMI 3',
+    'DisplayPort': 'DisplayPort',
+    'MagicInfo': 'MagicInfo',
+}
+
+# Input options for Samsung displays (QN series - Terrace Gallery)
+DISPLAY_INPUTS_QN = {
+    'TV': 'TV',
+    'HDMI1': 'HDMI 1',
+    'HDMI2': 'HDMI 2',
+    'HDMI3': 'HDMI 3',
+    'HDMI4': 'HDMI 4',
+}

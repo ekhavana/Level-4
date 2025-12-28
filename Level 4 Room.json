@@ -1,0 +1,124 @@
+{
+    "system": {
+        "name": "Level 4 Room",
+        "code_folder_path": "src",
+        "code_entry_file": "main.py",
+        "layout_folder_path": "layout",
+        "sound_folder_path": "sound",
+        "rfile_folder_path": "rfile",
+        "irfile_folder_path": "ir",
+        "system_id": "5343",
+        "author": {
+            "name": "Evgeny Khavana",
+            "email": "ekhavana@pavion.com"
+        },
+        "version": "1.0.0",
+        "primary_device_alias": "Level4Controller"
+    },
+    "devices": [
+        {
+            "name": "IPCP Pro 250 xi - Level4 Controller",
+            "part_number": "60-1911-01",
+            "alias": "Level4Controller",
+            "network": {
+                "host_network_type": "LAN",
+                "interfaces": [
+                    {
+                        "address": "192.168.1.103",
+                        "type": "LAN"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PartyRoomTouchPanel",
+            "part_number": "60-1562-02",
+            "alias": "PartyRoomTouchPanel",
+            "extron_control_web_id": "d4c309df-212c-4bba-afg0-8d19f64a25c9",
+            "network": {
+                "host_network_type": "LAN",
+                "interfaces": [
+                    {
+                        "address": "192.168.1.211",
+                        "type": "LAN"
+                    }
+                ]
+            },
+            "ui": {
+                "layout_file": "25D1C17532.100_Air_Group_TLPPRO725T_Level4_Party_Room_EK.gdl",
+                "enable_click_sound": true,
+                "press_feedback": "none",
+                "thumb_change_report_interval": 0.1,
+                "thumb_to_fill_sync_time": 0.5
+            }
+        },
+        {
+            "name": "TerraceGalleryTouchPanel",
+            "part_number": "60-1562-02",
+            "alias": "TerraceGalleryTouchPanel",
+            "extron_control_web_id": "d4c309df-212c-4bba-afg0-8d19kl4a25c9",
+            "network": {
+                "host_network_type": "LAN",
+                "interfaces": [
+                    {
+                        "address": "192.168.1.212",
+                        "type": "LAN"
+                    }
+                ]
+            },
+            "ui": {
+                "layout_file": "25D1C17532.100_Air_Group_TLPPRO725T_Level4_TerraceGallery_EK.gdl",
+                "enable_click_sound": true,
+                "press_feedback": "none",
+                "thumb_change_report_interval": 0.1,
+                "thumb_to_fill_sync_time": 0.5
+            }
+        },
+        {
+            "name": "TerraceGallery2TouchPanel",
+            "part_number": "60-1562-02",
+            "alias": "TerraceGallery2TouchPanel",
+            "extron_control_web_id": "d4c309df-212c-4bba-alp0-8d19kl4a25c9",
+            "network": {
+                "host_network_type": "LAN",
+                "interfaces": [
+                    {
+                        "address": "192.168.1.213",
+                        "type": "LAN"
+                    }
+                ]
+            },
+            "ui": {
+                "layout_file": "25D1C17532.100_Air_Group_TLPPRO725T_Level4_TerraceGallery_EK.gdl",
+                "enable_click_sound": true,
+                "press_feedback": "none",
+                "thumb_change_report_interval": 0.1,
+                "thumb_to_fill_sync_time": 0.5
+            }
+        },
+        {
+            "name": "YogaStudioTouchPanel",
+            "part_number": "60-1562-02",
+            "alias": "YogaStudioTouchPanel",
+            "extron_control_web_id": "d4c30laf-212c-4bba-afg0-8d19f64a25c9",
+            "network": {
+                "host_network_type": "LAN",
+                "interfaces": [
+                    {
+                        "address": "192.168.1.214",
+                        "type": "LAN"
+                    }
+                ]
+            },
+            "ui": {
+                "layout_file": "25D1C17532.100_Air_Group_TLPPRO725T_Level4_YogaStudio_EK.gdl",
+                "enable_click_sound": true,
+                "press_feedback": "none",
+                "thumb_change_report_interval": 0.1,
+                "thumb_to_fill_sync_time": 0.5
+            }
+        }
+
+    ],
+    "schemaVersion": "1.0.0"
+}

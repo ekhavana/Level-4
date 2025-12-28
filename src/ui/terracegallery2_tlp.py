@@ -1,0 +1,39 @@
+"""
+DEPRECATED: This file has been consolidated into terracegallery_tlp.py
+
+Both Terrace Gallery touch panels (mirrored configuration) are now handled in the main
+terracegallery_tlp.py file. This file imports from there to maintain backward compatibility
+if this module is imported elsewhere.
+
+See terracegallery_tlp.py for all UI definitions and event handlers.
+"""
+
+# Import everything from the consolidated terracegallery_tlp module
+from ui.terracegallery_tlp import *
+
+# For backward compatibility, expose Panel 2 specific references
+# These are aliases to the TLP2_ prefixed objects in the main module
+dvTLP = dvTLP2
+BtnStart = TLP2_BtnStart
+BtnSystemPower = TLP2_BtnSystemPower
+BtnPowerOffYes = TLP2_BtnPowerOffYes
+BtnPowerOffCancel = TLP2_BtnPowerOffCancel
+BtnHelp = TLP2_BtnHelp
+BtnHelpPageClose = TLP2_BtnHelpPageClose
+TerraceGalleryCancelBtn = TLP2_TerraceGalleryCancelBtn
+TerraceGalleryTV1PowerOnBtn = TLP2_TerraceGalleryTV1PowerOnBtn
+TerraceGalleryTV1PowerOffBtn = TLP2_TerraceGalleryTV1PowerOffBtn
+TerraceGalleryTV2PowerOnBtn = TLP2_TerraceGalleryTV2PowerOnBtn
+TerraceGalleryTV2PowerOffBtn = TLP2_TerraceGalleryTV2PowerOffBtn
+TerraceGalleryTV1AudioSendToAllBtn = TLP2_TerraceGalleryTV1AudioSendToAllBtn
+TerraceGalleryTV1AudioSendToGymBtn = TLP2_TerraceGalleryTV1AudioSendToGymBtn
+TerraceGalleryTV1AudioSendToYogaBtn = TLP2_TerraceGalleryTV1AudioSendToYogaBtn
+TerraceGalleryTV1AudioSendToTerraceBtn = TLP2_TerraceGalleryTV1AudioSendToTerraceBtn
+TerraceGalleryTV1AudioSendToPartyRmBtn = TLP2_TerraceGalleryTV1AudioSendToPartyRmBtn
+TerraceGalleryTV1AudioSendToCourtyardBtn = TLP2_TerraceGalleryTV1AudioSendToCourtyardBtn
+TerraceGalleryTV2AudioSendToAllBtn = TLP2_TerraceGalleryTV2AudioSendToAllBtn
+TerraceGalleryTV2AudioSendToGymBtn = TLP2_TerraceGalleryTV2AudioSendToGymBtn
+TerraceGalleryTV2AudioSendToYogaBtn = TLP2_TerraceGalleryTV2AudioSendToYogaBtn
+TerraceGalleryTV2AudioSendToTerraceBtn = TLP2_TerraceGalleryTV2AudioSendToTerraceBtn
+TerraceGalleryTV2AudioSendToPartyRmBtn = TLP2_TerraceGalleryTV2AudioSendToPartyRmBtn
+TerraceGalleryTV2AudioSendToCourtyardBtn = TLP2_TerraceGalleryTV2AudioSendToCourtyardBtn
