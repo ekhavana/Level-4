@@ -33,14 +33,14 @@ AllTouchPanels = [dvTLP1, dvTLP2]
 
 #Main Control Buttons - Panel 1 --------------------------------------------------------
 
-TLP1_BtnStart = Button(dvTLP1, variables.TLP_START_CONTROL_ID)
+TLP1_BtnStart = Button(dvTLP1, 7002)
 TLP1_BtnSystemPower = Button(dvTLP1, 8022)
 TLP1_BtnPowerOffYes = Button(dvTLP1, 9028)
 TLP1_BtnPowerOffCancel = Button(dvTLP1, 9029)
 TLP1_BtnHelp = Button(dvTLP1, 8117)
 TLP1_BtnHelpPageClose = Button(dvTLP1, 9057)
 
-TLP1_TerraceGalleryCancelBtn = Button(dvTLP1, 43)
+#TLP1_TerraceGalleryCancelBtn = Button(dvTLP1, 43)
 TLP1_TerraceGalleryTV1PowerOnBtn = Button(dvTLP1, 257)
 TLP1_TerraceGalleryTV1PowerOffBtn = Button(dvTLP1, 258)
 TLP1_TerraceGalleryTV2PowerOnBtn = Button(dvTLP1, 269)
@@ -64,14 +64,14 @@ TLP1_TerraceGalleryTV2AudioSendToCourtyardBtn = Button(dvTLP1, 274)
 
 #Main Control Buttons - Panel 2 --------------------------------------------------------
 
-TLP2_BtnStart = Button(dvTLP2, variables.TLP_START_CONTROL_ID)
+TLP2_BtnStart = Button(dvTLP2, 7002)
 TLP2_BtnSystemPower = Button(dvTLP2, 8022)
 TLP2_BtnPowerOffYes = Button(dvTLP2, 9028)
 TLP2_BtnPowerOffCancel = Button(dvTLP2, 9029)
 TLP2_BtnHelp = Button(dvTLP2, 8117)
 TLP2_BtnHelpPageClose = Button(dvTLP2, 9057)
 
-TLP2_TerraceGalleryCancelBtn = Button(dvTLP2, 43)
+#TLP2_TerraceGalleryCancelBtn = Button(dvTLP2, 43)
 TLP2_TerraceGalleryTV1PowerOnBtn = Button(dvTLP2, 257)
 TLP2_TerraceGalleryTV1PowerOffBtn = Button(dvTLP2, 258)
 TLP2_TerraceGalleryTV2PowerOnBtn = Button(dvTLP2, 269)
@@ -96,13 +96,13 @@ TLP2_TerraceGalleryTV2AudioSendToCourtyardBtn = Button(dvTLP2, 274)
 # Dictionary mapping button IDs to button pairs for synchronization
 # Format: {button_id: (TLP1_button, TLP2_button)}
 MirroredButtonPairs = {
-    variables.TLP_START_CONTROL_ID: (TLP1_BtnStart, TLP2_BtnStart),
+    7002: (TLP1_BtnStart, TLP2_BtnStart),
     8022: (TLP1_BtnSystemPower, TLP2_BtnSystemPower),
     9028: (TLP1_BtnPowerOffYes, TLP2_BtnPowerOffYes),
     9029: (TLP1_BtnPowerOffCancel, TLP2_BtnPowerOffCancel),
     8117: (TLP1_BtnHelp, TLP2_BtnHelp),
     9057: (TLP1_BtnHelpPageClose, TLP2_BtnHelpPageClose),
-    43: (TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn),
+    #43: (TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn),
     257: (TLP1_TerraceGalleryTV1PowerOnBtn, TLP2_TerraceGalleryTV1PowerOnBtn),
     258: (TLP1_TerraceGalleryTV1PowerOffBtn, TLP2_TerraceGalleryTV1PowerOffBtn),
     269: (TLP1_TerraceGalleryTV2PowerOnBtn, TLP2_TerraceGalleryTV2PowerOnBtn),
@@ -128,7 +128,7 @@ AllPowerOffYesBtns = [TLP1_BtnPowerOffYes, TLP2_BtnPowerOffYes]
 AllPowerOffCancelBtns = [TLP1_BtnPowerOffCancel, TLP2_BtnPowerOffCancel]
 AllHelpBtns = [TLP1_BtnHelp, TLP2_BtnHelp]
 AllHelpPageCloseBtns = [TLP1_BtnHelpPageClose, TLP2_BtnHelpPageClose]
-AllCancelBtns = [TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn]
+#AllCancelBtns = [TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn]
 
 AllTV1PowerOnBtns = [TLP1_TerraceGalleryTV1PowerOnBtn, TLP2_TerraceGalleryTV1PowerOnBtn]
 AllTV1PowerOffBtns = [TLP1_TerraceGalleryTV1PowerOffBtn, TLP2_TerraceGalleryTV1PowerOffBtn]
@@ -263,10 +263,10 @@ def BtnHelpPageClosePressed(button, state):
     print('Terrace Gallery: Help page closed')
     SyncAllPanelsHidePopup(variables.POPUPS['Help'])
 
-@event(AllCancelBtns, 'Pressed')
-def TerraceGalleryCancelBtnPressed(button, state):
-    """Handle cancel/back navigation"""
-    print('Terrace Gallery: Cancel button pressed')
+#@event(AllCancelBtns, 'Pressed')
+#def TerraceGalleryCancelBtnPressed(button, state):
+#    """Handle cancel/back navigation"""
+#    print('Terrace Gallery: Cancel button pressed')
 
 # TV1 Power Control Events --------------------------------------------------------------
 

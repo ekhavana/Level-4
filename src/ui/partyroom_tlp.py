@@ -22,7 +22,7 @@ dvPartyRoomTLP = devices.dvPartyRoomTLP
 # ========================================================================================
 
 # System Control Buttons
-BtnStart = Button(dvPartyRoomTLP, variables.TLP_START_CONTROL_ID)
+BtnStart = Button(dvPartyRoomTLP, 7001)
 BtnSystemPower = Button(dvPartyRoomTLP, 8022)
 BtnPowerOffYes = Button(dvPartyRoomTLP, 9028)
 BtnPowerOffCancel = Button(dvPartyRoomTLP, 9029)
@@ -30,7 +30,7 @@ BtnHelp = Button(dvPartyRoomTLP, 8117)
 BtnHelpPageClose = Button(dvPartyRoomTLP, 9057)
 
 # Room Control Buttons
-PartyRoomCancelBtn = Button(dvPartyRoomTLP, 42)
+# PartyRoomCancelBtn = Button(dvPartyRoomTLP, 42)
 PartyRoomMusicPlayerBtn = Button(dvPartyRoomTLP, 254)
 PartyRoomBTPlateBtn = Button(dvPartyRoomTLP, 255)
 PartyRoomMuteBtn = Button(dvPartyRoomTLP, 247)
@@ -112,10 +112,10 @@ def BtnHelpPageClosePressed(button, state):
     print('Party Room: Help page closed')
     dvPartyRoomTLP.HidePopup(variables.POPUPS['Help'])
 
-@event(PartyRoomCancelBtn, 'Pressed')
-def PartyRoomCancelBtnPressed(button, state):
-    """Handle cancel/back navigation"""
-    print('Party Room: Cancel button pressed')
+#@event(PartyRoomCancelBtn, 'Pressed')
+#def PartyRoomCancelBtnPressed(button, state):
+#    """Handle cancel/back navigation"""
+#    print('Party Room: Cancel button pressed')
 
 # Audio Source Selection Events ---------------------------------------------------------
 

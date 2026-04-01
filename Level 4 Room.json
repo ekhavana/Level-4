@@ -1,6 +1,6 @@
 {
     "system": {
-        "name": "Level 4 Room",
+        "name": "Level 4",
         "code_folder_path": "src",
         "code_entry_file": "main.py",
         "layout_folder_path": "layout",
@@ -32,7 +32,7 @@
         },
         {
             "name": "PartyRoomTouchPanel",
-            "part_number": "60-1562-02",
+            "part_number": "60-1563-12",
             "alias": "PartyRoomTouchPanel",
             "extron_control_web_id": "d4c309df-212c-4bba-afg0-8d19f64a25c9",
             "network": {
@@ -54,7 +54,7 @@
         },
         {
             "name": "TerraceGalleryTouchPanel",
-            "part_number": "60-1562-02",
+            "part_number": "60-1563-12",
             "alias": "TerraceGalleryTouchPanel",
             "extron_control_web_id": "d4c309df-212c-4bba-afg0-8d19kl4a25c9",
             "network": {
@@ -76,7 +76,7 @@
         },
         {
             "name": "TerraceGallery2TouchPanel",
-            "part_number": "60-1562-02",
+            "part_number": "60-1563-12",
             "alias": "TerraceGallery2TouchPanel",
             "extron_control_web_id": "d4c309df-212c-4bba-alp0-8d19kl4a25c9",
             "network": {
@@ -98,7 +98,7 @@
         },
         {
             "name": "YogaStudioTouchPanel",
-            "part_number": "60-1562-02",
+            "part_number": "60-1563-12",
             "alias": "YogaStudioTouchPanel",
             "extron_control_web_id": "d4c30laf-212c-4bba-afg0-8d19f64a25c9",
             "network": {

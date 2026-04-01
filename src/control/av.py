@@ -123,6 +123,9 @@ def ScaleVolumeToUI(dspValue):
     maxDSP = variables.DSP_VOLUME_MAX
     return int(((dspValue - minDSP) / (maxDSP - minDSP)) * (maxUI - minUI) + minUI)
 
+# Alias for better readability
+UnscaleVolume = ScaleVolumeToUI
+
 # ========================================================================================
 # Party Room System Power Functions
 # ========================================================================================
@@ -580,10 +583,10 @@ def CourtyardSystemPowerOff(callback=None):
 
 def SetMixpointMute(inputType, inputChannel, outputChannel, muteState):
     """
-    Set mixpoint mute state based on input type (Analog or Dante)
+    Set mixpoint mute state based on input type (Analog, Dante, or VirtualReceive)
     
     Args:
-        inputType: 'Analog' or 'Dante'
+        inputType: 'Analog', 'Dante', or 'VirtualReceive'
         inputChannel: Input channel number as string
         outputChannel: Output channel number as string
         muteState: 'On' or 'Off'
@@ -593,9 +596,11 @@ def SetMixpointMute(inputType, inputChannel, outputChannel, muteState):
         devices.dvDSPLevel4.Set('MixpointMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
     elif inputType == 'Dante':
         # For Dante inputs, use Dante-specific mixpoint control
-        # Note: DMP 128 FlexPlus may use different command structure for Dante routing
-        # Using standard MixpointMute with Dante input channel numbering
         devices.dvDSPLevel4.Set('MixpointMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
+    elif inputType == 'VirtualReceive':
+        # For Virtual Receive inputs (BT Plates routed through Virtual Sends A/B)
+        # Virtual Receives use VirtualReturnMute command
+        devices.dvDSPLevel4.Set('VirtualReturnMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
 
 def SetAudioSource(room, source):
     """

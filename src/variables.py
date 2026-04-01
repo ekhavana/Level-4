@@ -20,11 +20,6 @@ POPUPS = {
     'Help': 'Help',
 }
 
-# Splash page Start button — object/control ID must exist on each touch panel GDL (Global Configurator).
-# If the log reports "Control ID … not defined", either assign this ID to the Start button in the GDL
-# or change this value to match the ID shown for that button in the layout.
-TLP_START_CONTROL_ID = 8000
-
 # ========================================================================================
 # DSP Configuration - DMP 128 FlexPlus
 # ========================================================================================
@@ -50,8 +45,8 @@ DSP_ANALOG_INPUTS = {
 }
 
 # DSP Dante Input Assignments
-# Dante 1-4: Yoga Studio BT/Aux Wall Plate
-# Dante 5-8: Party Room BT Wall Plate
+# Dante 1-4: Yoga Studio BT/Aux Wall Plate → Virtual Send A (1-4)
+# Dante 5-8: Party Room BT Wall Plate → Virtual Send B (5-8)
 # Dante 9: Yoga Studio TV Audio
 # Dante 10: Terrace Gallery TV 1 Audio
 # Dante 11: Terrace Gallery TV 2 Audio
@@ -71,11 +66,25 @@ DSP_DANTE_INPUTS = {
     'PartyRoomTV': '12',
 }
 
-# Combined input references for routing (type indicates Analog or Dante)
+# DSP Virtual Receive Assignments
+# Virtual Receive A-D: From Virtual Send A (Yoga Studio BT Plate Dante 1-4)
+# Virtual Receive E-H: From Virtual Send B (Party Room BT Plate Dante 5-8)
+DSP_VIRTUAL_RECEIVES = {
+    'VirtualReceiveA': 'A',
+    'VirtualReceiveB': 'B',
+    'VirtualReceiveC': 'C',
+    'VirtualReceiveD': 'D',
+    'VirtualReceiveE': 'E',
+    'VirtualReceiveF': 'F',
+    'VirtualReceiveG': 'G',
+    'VirtualReceiveH': 'H',
+}
+
+# Combined input references for routing (type indicates Analog, Dante, or VirtualReceive)
 DSP_INPUTS = {
     'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-    'BTPlate_YogaStudio': {'Type': 'Dante', 'Channels': ['1', '2', '3', '4']},  # Multi-channel
-    'BTPlate_PartyRoom': {'Type': 'Dante', 'Channels': ['5', '6', '7', '8']},   # Multi-channel
+    'BTPlate_YogaStudio': {'Type': 'VirtualReceive', 'Channels': ['A', 'B', 'C', 'D']},  # Virtual Receive A-D
+    'BTPlate_PartyRoom': {'Type': 'VirtualReceive', 'Channels': ['E', 'F', 'G', 'H']},   # Virtual Receive E-H
     'YogaStudioTV': {'Type': 'Dante', 'Channel': '9'},
     'TerraceGalleryTV1': {'Type': 'Dante', 'Channel': '10'},
     'TerraceGalleryTV2': {'Type': 'Dante', 'Channel': '11'},
@@ -86,11 +95,11 @@ DSP_INPUTS = {
 AUDIO_SOURCES = {
     'PartyRoom': {
         'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-        'BTPlate': {'Type': 'Dante', 'Channels': ['5', '6', '7', '8']},
+        'BTPlate': {'Type': 'VirtualReceive', 'Channels': ['E', 'F', 'G', 'H']},  # Virtual Receive E-H (Send B)
     },
     'YogaStudio': {
         'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-        'BTPlate': {'Type': 'Dante', 'Channels': ['1', '2', '3', '4']},
+        'BTPlate': {'Type': 'VirtualReceive', 'Channels': ['A', 'B', 'C', 'D']},  # Virtual Receive A-D (Send A)
     },
 }
 

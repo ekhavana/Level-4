@@ -9,7 +9,9 @@ This module handles:
 
 # Project imports
 import devices
+import variables
 import control.remote as remote
+import control.av as av
 
 # ========================================================================================
 # Connection Status Handlers
@@ -51,6 +53,35 @@ def TerraceGalleryDisplay2ConnectionHandler(command, value, qualifier):
         print('System: Terrace Gallery Display 2 Disconnected')
 
 # ========================================================================================
+# DSP Feedback Handlers
+# ========================================================================================
+
+def DSPVolumeHandler(command, value, qualifier):
+    """Handle DSP volume feedback and update UI sliders"""
+    output = qualifier.get('Output')
+    if not output:
+        return
+    
+    # Map output number to room name
+    room = None
+    for roomName, outputNum in variables.DSP_OUTPUTS.items():
+        if outputNum == output:
+            room = roomName
+            break
+    
+    if room:
+        # Convert DSP dB value to UI slider value (0-100)
+        try:
+            dspLevel = float(value)
+            uiLevel = av.UnscaleVolume(dspLevel)
+            av.VolumeLevel[room] = uiLevel
+            print(f'System: {room} Volume feedback: {uiLevel} (DSP: {dspLevel}dB)')
+            # Notify UI to update slider (without triggering another DSP command)
+            av._NotifyUICallbacks('VolumeChanged', room=room, level=uiLevel)
+        except (ValueError, TypeError):
+            pass
+
+# ========================================================================================
 # Initialization
 # ========================================================================================
 
@@ -63,6 +94,11 @@ def Initialize():
     devices.dvYogaStudioDisplay.SubscribeStatus('ConnectionStatus', None, YogaStudioDisplayConnectionHandler)
     devices.dvTerraceGalleryDisplay1.SubscribeStatus('ConnectionStatus', None, TerraceGalleryDisplay1ConnectionHandler)
     devices.dvTerraceGalleryDisplay2.SubscribeStatus('ConnectionStatus', None, TerraceGalleryDisplay2ConnectionHandler)
+    
+    # Subscribe to DSP volume feedback for all outputs
+    for room, output in variables.DSP_OUTPUTS.items():
+        devices.dvDSPLevel4.SubscribeStatus('OutputAttenuation', {'Output': output}, DSPVolumeHandler)
+        print(f'System: Subscribed to volume feedback for {room} (Output {output})')
     
     # Connect all network devices
     devices.dvDSPLevel4.Connect()

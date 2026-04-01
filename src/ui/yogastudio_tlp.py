@@ -22,7 +22,7 @@ dvTLPYogaStudio = devices.dvTLPYogaStudio
 # ========================================================================================
 
 # System Control Buttons
-BtnStart = Button(dvTLPYogaStudio, variables.TLP_START_CONTROL_ID)
+BtnStart = Button(dvTLPYogaStudio, 7000)
 BtnSystemPower = Button(dvTLPYogaStudio, 8022)
 BtnPowerOffYes = Button(dvTLPYogaStudio, 9028)
 BtnPowerOffCancel = Button(dvTLPYogaStudio, 9029)
@@ -30,11 +30,11 @@ BtnHelp = Button(dvTLPYogaStudio, 8117)
 BtnHelpPageClose = Button(dvTLPYogaStudio, 9057)
 
 # Room Control Buttons
-YogaStudioCancelBtn = Button(dvTLPYogaStudio, 44)
+#YogaStudioCancelBtn = Button(dvTLPYogaStudio, 44)
 YogaStudioMusicPlayerBtn = Button(dvTLPYogaStudio, 283)
 YogaStudioBTPlateBtn = Button(dvTLPYogaStudio, 282)
 YogaStudioMuteBtn = Button(dvTLPYogaStudio, 275)
-YogaStudioVolumeLvl = Slider(dvTLPYogaStudio, 274)
+YogaStudioVolumeLvl = Slider(dvTLPYogaStudio, 276)
 
 # TV Power Buttons
 YogaStudioTVPowerOnBtn = Button(dvTLPYogaStudio, 266)
@@ -112,10 +112,10 @@ def BtnHelpPageClosePressed(button, state):
     print('Yoga Studio: Help page closed')
     dvTLPYogaStudio.HidePopup(variables.POPUPS['Help'])
 
-@event(YogaStudioCancelBtn, 'Pressed')
-def YogaStudioCancelBtnPressed(button, state):
-    """Handle cancel/back navigation"""
-    print('Yoga Studio: Cancel button pressed')
+#@event(YogaStudioCancelBtn, 'Pressed')
+#def YogaStudioCancelBtnPressed(button, state):
+#    """Handle cancel/back navigation"""
+#    print('Yoga Studio: Cancel button pressed')
 
 # Audio Source Selection Events ---------------------------------------------------------
 
