@@ -33,7 +33,7 @@ AllTouchPanels = [dvTLP1, dvTLP2]
 
 #Main Control Buttons - Panel 1 --------------------------------------------------------
 
-TLP1_BtnStart = Button(dvTLP1, 8000)
+TLP1_BtnStart = Button(dvTLP1, variables.TLP_START_CONTROL_ID)
 TLP1_BtnSystemPower = Button(dvTLP1, 8022)
 TLP1_BtnPowerOffYes = Button(dvTLP1, 9028)
 TLP1_BtnPowerOffCancel = Button(dvTLP1, 9029)
@@ -64,7 +64,7 @@ TLP1_TerraceGalleryTV2AudioSendToCourtyardBtn = Button(dvTLP1, 274)
 
 #Main Control Buttons - Panel 2 --------------------------------------------------------
 
-TLP2_BtnStart = Button(dvTLP2, 8000)
+TLP2_BtnStart = Button(dvTLP2, variables.TLP_START_CONTROL_ID)
 TLP2_BtnSystemPower = Button(dvTLP2, 8022)
 TLP2_BtnPowerOffYes = Button(dvTLP2, 9028)
 TLP2_BtnPowerOffCancel = Button(dvTLP2, 9029)
@@ -96,7 +96,7 @@ TLP2_TerraceGalleryTV2AudioSendToCourtyardBtn = Button(dvTLP2, 274)
 # Dictionary mapping button IDs to button pairs for synchronization
 # Format: {button_id: (TLP1_button, TLP2_button)}
 MirroredButtonPairs = {
-    8000: (TLP1_BtnStart, TLP2_BtnStart),
+    variables.TLP_START_CONTROL_ID: (TLP1_BtnStart, TLP2_BtnStart),
     8022: (TLP1_BtnSystemPower, TLP2_BtnSystemPower),
     9028: (TLP1_BtnPowerOffYes, TLP2_BtnPowerOffYes),
     9029: (TLP1_BtnPowerOffCancel, TLP2_BtnPowerOffCancel),

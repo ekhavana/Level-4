@@ -20,6 +20,11 @@ POPUPS = {
     'Help': 'Help',
 }
 
+# Splash page Start button — object/control ID must exist on each touch panel GDL (Global Configurator).
+# If the log reports "Control ID … not defined", either assign this ID to the Start button in the GDL
+# or change this value to match the ID shown for that button in the layout.
+TLP_START_CONTROL_ID = 8000
+
 # ========================================================================================
 # DSP Configuration - DMP 128 FlexPlus
 # ========================================================================================

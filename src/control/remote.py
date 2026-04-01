@@ -1,6 +1,6 @@
 """
 Remote Control Server - Receives commands from main control processor (Level 1)
-and drives the Level 4 system. Uses EthernetServerInterfaceEx on TCP port 5000.
+and drives the Level 4 system. Uses EthernetServerInterfaceEx on TCP port 10000.
 
 Protocol: Roof-style comma-delimited (primary). Also accepts pipe-delimited for compatibility.
 One command per line, newline-terminated.
@@ -486,10 +486,15 @@ def Start():
     global _server
     if _server:
         return
-    _server = EthernetServerInterfaceEx(SERVER_PORT, 'TCP', 'Any')
-    # extronlib runtime exposes these handlers; pylance type stubs omit them
-    _server.SetConnectionHandler(_on_connect)  # type: ignore[attr-defined]
-    _server.SetReceiveDataHandler(_on_receive)  # type: ignore[attr-defined]
+    # Match ModuleSupport.TcpServerLogger: port + Interface. Do not use SetConnectionHandler —
+    # EthernetServerInterfaceEx uses Connected / ReceiveData assignments (API 1.8.x).
+    try:
+        _server = EthernetServerInterfaceEx(SERVER_PORT, Interface='Any')
+    except TypeError:
+        _server = EthernetServerInterfaceEx(SERVER_PORT, 'TCP', 'Any')
+    _server.Connected = _on_connect
+    _server.ReceiveData = _on_receive
+    _server.StartListen()
     print(f'Remote Control: Listening on TCP {SERVER_PORT}')
 
     # Register for AV state changes to push feedback

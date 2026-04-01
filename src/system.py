@@ -15,39 +15,39 @@ import control.remote as remote
 # Connection Status Handlers
 # ========================================================================================
 
-def DSPConnectionHandler(interface, state):
+def DSPConnectionHandler(command, value, qualifier):
     """Handle DSP connection state changes"""
-    if state == 'Connected':
+    if value == 'Connected':
         print('System: DSP Level 4 Connected')
-    elif state == 'Disconnected':
+    elif value == 'Disconnected':
         print('System: DSP Level 4 Disconnected')
 
-def PartyRoomDisplayConnectionHandler(interface, state):
+def PartyRoomDisplayConnectionHandler(command, value, qualifier):
     """Handle Party Room Display connection state changes"""
-    if state == 'Connected':
+    if value == 'Connected':
         print('System: Party Room Display Connected')
-    elif state == 'Disconnected':
+    elif value == 'Disconnected':
         print('System: Party Room Display Disconnected')
 
-def YogaStudioDisplayConnectionHandler(interface, state):
+def YogaStudioDisplayConnectionHandler(command, value, qualifier):
     """Handle Yoga Studio Display connection state changes"""
-    if state == 'Connected':
+    if value == 'Connected':
         print('System: Yoga Studio Display Connected')
-    elif state == 'Disconnected':
+    elif value == 'Disconnected':
         print('System: Yoga Studio Display Disconnected')
 
-def TerraceGalleryDisplay1ConnectionHandler(interface, state):
+def TerraceGalleryDisplay1ConnectionHandler(command, value, qualifier):
     """Handle Terrace Gallery Display 1 connection state changes"""
-    if state == 'Connected':
+    if value == 'Connected':
         print('System: Terrace Gallery Display 1 Connected')
-    elif state == 'Disconnected':
+    elif value == 'Disconnected':
         print('System: Terrace Gallery Display 1 Disconnected')
 
-def TerraceGalleryDisplay2ConnectionHandler(interface, state):
+def TerraceGalleryDisplay2ConnectionHandler(command, value, qualifier):
     """Handle Terrace Gallery Display 2 connection state changes"""
-    if state == 'Connected':
+    if value == 'Connected':
         print('System: Terrace Gallery Display 2 Connected')
-    elif state == 'Disconnected':
+    elif value == 'Disconnected':
         print('System: Terrace Gallery Display 2 Disconnected')
 
 # ========================================================================================

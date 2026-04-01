@@ -22,7 +22,7 @@ dvTLPYogaStudio = devices.dvTLPYogaStudio
 # ========================================================================================
 
 # System Control Buttons
-BtnStart = Button(dvTLPYogaStudio, 8000)
+BtnStart = Button(dvTLPYogaStudio, variables.TLP_START_CONTROL_ID)
 BtnSystemPower = Button(dvTLPYogaStudio, 8022)
 BtnPowerOffYes = Button(dvTLPYogaStudio, 9028)
 BtnPowerOffCancel = Button(dvTLPYogaStudio, 9029)
@@ -32,6 +32,7 @@ BtnHelpPageClose = Button(dvTLPYogaStudio, 9057)
 # Room Control Buttons
 YogaStudioCancelBtn = Button(dvTLPYogaStudio, 44)
 YogaStudioMusicPlayerBtn = Button(dvTLPYogaStudio, 283)
+YogaStudioBTPlateBtn = Button(dvTLPYogaStudio, 282)
 YogaStudioMuteBtn = Button(dvTLPYogaStudio, 275)
 YogaStudioVolumeLvl = Slider(dvTLPYogaStudio, 274)
 
@@ -48,7 +49,7 @@ YogaStudioTVAudioSendToPartyRmBtn = Button(dvTLPYogaStudio, 280)
 YogaStudioTVAudioSendToCourtyardBtn = Button(dvTLPYogaStudio, 284)
 
 # Mutually Exclusive Button Sets
-YogaStudioAudioSource = MESet([YogaStudioMusicPlayerBtn])
+YogaStudioAudioSource = MESet([YogaStudioMusicPlayerBtn, YogaStudioBTPlateBtn])
 YogaStudioTVPower = MESet([YogaStudioTVPowerOffBtn, YogaStudioTVPowerOnBtn])
 YogaStudioSendToMES = MESet([YogaStudioTVAudioSendToAllBtn, YogaStudioTVAudioSendToGymBtn, 
                              YogaStudioTVAudioSendToPartyRmBtn, YogaStudioTVAudioSendToTerraceBtn, 
@@ -64,11 +65,11 @@ YogaStudioSendToMES = MESet([YogaStudioTVAudioSendToAllBtn, YogaStudioTVAudioSen
 def BtnStartPressed(button, state):
     """Start system - navigate to main page and power on"""
     print('Yoga Studio: Start button pressed')
-    dvTLP.ShowPage(variables.PAGES['Main'])
-    dvTLP.ShowPopup(variables.POPUPS['Starting Up'])
+    dvTLPYogaStudio.ShowPage(variables.PAGES['Main'])
+    dvTLPYogaStudio.ShowPopup(variables.POPUPS['Starting Up'])
     
     def OnStartupComplete():
-        dvTLP.HidePopup(variables.POPUPS['Starting Up'])
+        dvTLPYogaStudio.HidePopup(variables.POPUPS['Starting Up'])
         print('Yoga Studio: System startup complete')
     
     av.YogaStudioSystemPowerOn(callback=OnStartupComplete)
@@ -77,18 +78,18 @@ def BtnStartPressed(button, state):
 def BtnSystemPowerPressed(button, state):
     """Show power off confirmation popup"""
     print('Yoga Studio: System Power button pressed')
-    dvTLP.ShowPopup(variables.POPUPS['Confirmation'])
+    dvTLPYogaStudio.ShowPopup(variables.POPUPS['Confirmation'])
 
 @event(BtnPowerOffYes, 'Pressed')
 def BtnPowerOffYesPressed(button, state):
     """Confirm system shutdown"""
     print('Yoga Studio: Power Off confirmed')
-    dvTLP.HidePopup(variables.POPUPS['Confirmation'])
-    dvTLP.ShowPopup(variables.POPUPS['Powering Down'])
+    dvTLPYogaStudio.HidePopup(variables.POPUPS['Confirmation'])
+    dvTLPYogaStudio.ShowPopup(variables.POPUPS['Powering Down'])
     
     def OnShutdownComplete():
-        dvTLP.HidePopup(variables.POPUPS['Powering Down'])
-        dvTLP.ShowPage(variables.PAGES['Splash'])
+        dvTLPYogaStudio.HidePopup(variables.POPUPS['Powering Down'])
+        dvTLPYogaStudio.ShowPage(variables.PAGES['Splash'])
         print('Yoga Studio: System shutdown complete')
     
     av.YogaStudioSystemPowerOff(callback=OnShutdownComplete)
@@ -97,19 +98,19 @@ def BtnPowerOffYesPressed(button, state):
 def BtnPowerOffCancelPressed(button, state):
     """Cancel shutdown"""
     print('Yoga Studio: Power Off cancelled')
-    dvTLP.HidePopup(variables.POPUPS['Confirmation'])
+    dvTLPYogaStudio.HidePopup(variables.POPUPS['Confirmation'])
 
 @event(BtnHelp, 'Pressed')
 def BtnHelpPressed(button, state):
     """Show help popup"""
     print('Yoga Studio: Help button pressed')
-    dvTLP.ShowPopup(variables.POPUPS['Help'])
+    dvTLPYogaStudio.ShowPopup(variables.POPUPS['Help'])
 
 @event(BtnHelpPageClose, 'Pressed')
 def BtnHelpPageClosePressed(button, state):
     """Close help popup"""
     print('Yoga Studio: Help page closed')
-    dvTLP.HidePopup(variables.POPUPS['Help'])
+    dvTLPYogaStudio.HidePopup(variables.POPUPS['Help'])
 
 @event(YogaStudioCancelBtn, 'Pressed')
 def YogaStudioCancelBtnPressed(button, state):

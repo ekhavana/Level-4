@@ -18,19 +18,19 @@ import modules.device.smsg_display_QNxxLS03DAFXZA_Series_v1_0_0_0 as modSamsungT
 
 # Define devices
 ##Control Processors
-MainProcessor = ProcessorDevice('MainController')
+MainProcessor = ProcessorDevice('Level4Controller')
 
 ##UI Devices
 dvTLPYogaStudio = UIDevice('YogaStudioTouchPanel')
 dvPartyRoomTLP = UIDevice('PartyRoomTouchPanel')
-dvTerraceGalleryTLP1 = UIDevice('TerraceGalleryTouchPanel1')
-dvTerraceGalleryTLP2 = UIDevice('TerraceGalleryTouchPanel2')
+dvTerraceGalleryTLP1 = UIDevice('TerraceGalleryTouchPanel')
+dvTerraceGalleryTLP2 = UIDevice('TerraceGallery2TouchPanel')
 
 ##Control Devices
 # Define any control devices here (e.g. extronlib.device objects, custom python coded devices, etc.)
 
-dvDSPLevel4 = modDSP.SSHClass('192.168.1.223', 22023, Credentials=('admin', 'extron'), Model='DMP 128 FlexPlus C AT')
-dvPartyRmDisplay = modSamsungTV.EthernetClass('192.168.1.51', 1515, 'QB85C')
-dvYogaStudioDisplay = modSamsungTV.EthernetClass('192.168.1.52', 1515, 'QB75C')
-dvTerraceGalleryDisplay1 = modSamsungTVQN.SerialOverEthernetClass('192.168.1.54', 2001, Model='QN43LS03DAFXZA')
-dvTerraceGalleryDisplay2 = modSamsungTVQN.SerialOverEthernetClass('192.168.1.56', 2001, Model='QN43LS03DAFXZA')
+dvDSPLevel4 = modDSP.SSHClass('172.22.10.223', 22023, Credentials=('admin', 'extron'), Model='DMP 128 FlexPlus C AT')
+dvPartyRmDisplay = modSamsungTV.EthernetClass('172.22.10.51', 1515, Model='QB85C')
+dvYogaStudioDisplay = modSamsungTV.EthernetClass('172.22.10.52', 1515, Model='QB75C')
+dvTerraceGalleryDisplay1 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.54', 2001, Model='QN43LS03DAFXZA')
+dvTerraceGalleryDisplay2 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.56', 2001, Model='QN43LS03DAFXZA')

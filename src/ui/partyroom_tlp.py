@@ -22,7 +22,7 @@ dvPartyRoomTLP = devices.dvPartyRoomTLP
 # ========================================================================================
 
 # System Control Buttons
-BtnStart = Button(dvPartyRoomTLP, 8000)
+BtnStart = Button(dvPartyRoomTLP, variables.TLP_START_CONTROL_ID)
 BtnSystemPower = Button(dvPartyRoomTLP, 8022)
 BtnPowerOffYes = Button(dvPartyRoomTLP, 9028)
 BtnPowerOffCancel = Button(dvPartyRoomTLP, 9029)
