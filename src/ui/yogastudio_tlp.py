@@ -55,6 +55,9 @@ YogaStudioSendToMES = MESet([YogaStudioTVAudioSendToAllBtn, YogaStudioTVAudioSen
                              YogaStudioTVAudioSendToPartyRmBtn, YogaStudioTVAudioSendToTerraceBtn, 
                              YogaStudioTVAudioSendToYogaBtn, YogaStudioTVAudioSendToCourtyardBtn])
 
+# Register volume slider for DSP feedback (at module load time)
+av.RegisterVolumeSlider('YogaStudio', YogaStudioVolumeLvl)
+
 # ========================================================================================
 # Event Handlers
 # ========================================================================================

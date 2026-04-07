@@ -445,7 +445,8 @@ def _process_command(cmd):
         _send(f'OK,{cmd}')
 
 
-def _on_connect(interface, client, state):
+def _on_connect(client, state):
+    """Handle client connection/disconnection events"""
     if state == 'Connected':
         _clients.add(client)
         _send('EVT,STATUS,CONNECTED')
@@ -456,7 +457,7 @@ def _on_connect(interface, client, state):
             pass
 
 
-def _on_receive(interface, client, data):
+def _on_receive(client, data):
     try:
         text = data.decode()
     except Exception:

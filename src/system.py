@@ -7,6 +7,9 @@ This module handles:
 * System startup procedures
 """
 
+# Extron Library imports
+from extronlib.system import ProgramLog
+
 # Project imports
 import devices
 import variables
@@ -19,38 +22,44 @@ import control.av as av
 
 def DSPConnectionHandler(command, value, qualifier):
     """Handle DSP connection state changes"""
-    if value == 'Connected':
-        print('System: DSP Level 4 Connected')
+    ProgramLog(f'System: DSP connection status changed - {command}: {value}', 'warning')
+    if command == 'ConnectionStatus' and value == 'Connected':
+        ProgramLog('System: DSP connected, initializing volume feedback', 'warning')
+        # Request initial volume levels for all outputs to trigger feedback
+        for room, output in variables.DSP_OUTPUTS.items():
+            devices.dvDSPLevel4.Update('OutputAttenuation', {'Output': output})
+            ProgramLog(f'System: Requested volume feedback for {room} (Output {output})', 'warning')
+        ProgramLog('System: Volume feedback initialization complete', 'warning')
     elif value == 'Disconnected':
-        print('System: DSP Level 4 Disconnected')
+        ProgramLog('System: DSP Level 4 Disconnected', 'error')
 
 def PartyRoomDisplayConnectionHandler(command, value, qualifier):
     """Handle Party Room Display connection state changes"""
     if value == 'Connected':
-        print('System: Party Room Display Connected')
+        ProgramLog('System: Party Room Display Connected', 'warning')
     elif value == 'Disconnected':
-        print('System: Party Room Display Disconnected')
+        ProgramLog('System: Party Room Display Disconnected', 'error')
 
 def YogaStudioDisplayConnectionHandler(command, value, qualifier):
     """Handle Yoga Studio Display connection state changes"""
     if value == 'Connected':
-        print('System: Yoga Studio Display Connected')
+        ProgramLog('System: Yoga Studio Display Connected', 'warning')
     elif value == 'Disconnected':
-        print('System: Yoga Studio Display Disconnected')
+        ProgramLog('System: Yoga Studio Display Disconnected', 'error')
 
 def TerraceGalleryDisplay1ConnectionHandler(command, value, qualifier):
     """Handle Terrace Gallery Display 1 connection state changes"""
     if value == 'Connected':
-        print('System: Terrace Gallery Display 1 Connected')
+        ProgramLog('System: Terrace Gallery Display 1 Connected', 'warning')
     elif value == 'Disconnected':
-        print('System: Terrace Gallery Display 1 Disconnected')
+        ProgramLog('System: Terrace Gallery Display 1 Disconnected', 'error')
 
 def TerraceGalleryDisplay2ConnectionHandler(command, value, qualifier):
     """Handle Terrace Gallery Display 2 connection state changes"""
     if value == 'Connected':
-        print('System: Terrace Gallery Display 2 Connected')
+        ProgramLog('System: Terrace Gallery Display 2 Connected', 'warning')
     elif value == 'Disconnected':
-        print('System: Terrace Gallery Display 2 Disconnected')
+        ProgramLog('System: Terrace Gallery Display 2 Disconnected', 'error')
 
 # ========================================================================================
 # DSP Feedback Handlers
@@ -58,6 +67,7 @@ def TerraceGalleryDisplay2ConnectionHandler(command, value, qualifier):
 
 def DSPVolumeHandler(command, value, qualifier):
     """Handle DSP volume feedback and update UI sliders"""
+    ProgramLog(f'System: DSP volume feedback - command={command}, value={value}dB, qualifier={qualifier}', 'warning')
     output = qualifier.get('Output')
     if not output:
         return
@@ -74,12 +84,18 @@ def DSPVolumeHandler(command, value, qualifier):
         try:
             dspLevel = float(value)
             uiLevel = av.UnscaleVolume(dspLevel)
+            ProgramLog(f'System: Converted {dspLevel}dB to UI level {uiLevel} for {room}', 'warning')
             av.VolumeLevel[room] = uiLevel
-            print(f'System: {room} Volume feedback: {uiLevel} (DSP: {dspLevel}dB)')
-            # Notify UI to update slider (without triggering another DSP command)
-            av._NotifyUICallbacks('VolumeChanged', room=room, level=uiLevel)
-        except (ValueError, TypeError):
-            pass
+            
+            # Update slider if registered
+            slider = av._VolumeSliders.get(room)
+            if slider:
+                ProgramLog(f'System: Setting slider for {room} to {uiLevel}', 'warning')
+                slider.SetFill(uiLevel)  # Use SetFill() method for Extron sliders
+            else:
+                ProgramLog(f'System: Warning - No slider registered for {room}', 'warning')
+        except (ValueError, TypeError) as e:
+            ProgramLog(f'System: DSP volume feedback error - {e}', 'error')
 
 # ========================================================================================
 # Initialization
@@ -87,8 +103,10 @@ def DSPVolumeHandler(command, value, qualifier):
 
 def Initialize():
     """Initialize system and connect all devices"""
+    ProgramLog('System: Starting initialization', 'warning')
     
     # Register connection handlers
+    ProgramLog('System: Subscribing to DSP connection status', 'warning')
     devices.dvDSPLevel4.SubscribeStatus('ConnectionStatus', None, DSPConnectionHandler)
     devices.dvPartyRmDisplay.SubscribeStatus('ConnectionStatus', None, PartyRoomDisplayConnectionHandler)
     devices.dvYogaStudioDisplay.SubscribeStatus('ConnectionStatus', None, YogaStudioDisplayConnectionHandler)
@@ -96,19 +114,22 @@ def Initialize():
     devices.dvTerraceGalleryDisplay2.SubscribeStatus('ConnectionStatus', None, TerraceGalleryDisplay2ConnectionHandler)
     
     # Subscribe to DSP volume feedback for all outputs
+    ProgramLog('System: Subscribing to DSP volume feedback', 'warning')
     for room, output in variables.DSP_OUTPUTS.items():
         devices.dvDSPLevel4.SubscribeStatus('OutputAttenuation', {'Output': output}, DSPVolumeHandler)
-        print(f'System: Subscribed to volume feedback for {room} (Output {output})')
+        ProgramLog(f'System: Subscribed to OutputAttenuation for {room} (Output {output})', 'warning')
     
     # Connect all network devices
+    ProgramLog('System: Connecting to DSP', 'warning')
     devices.dvDSPLevel4.Connect()
+    ProgramLog('System: Connecting to displays', 'warning')
     devices.dvPartyRmDisplay.Connect()
     devices.dvYogaStudioDisplay.Connect()
     devices.dvTerraceGalleryDisplay1.Connect()
     devices.dvTerraceGalleryDisplay2.Connect()
     
-    # Start remote control server (listening on TCP 5000)
+    # Start remote control server
     remote.Start()
 
-    print('System: All devices connecting...')
-    print('System Initialized')
+    ProgramLog('System: All devices connecting...', 'warning')
+    ProgramLog('System: Initialization complete', 'warning')

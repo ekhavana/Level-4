@@ -9,7 +9,7 @@ This module handles:
 """
 
 # Extron Library imports
-from extronlib.system import Wait
+from extronlib.system import Wait, ProgramLog
 
 # Project imports
 import devices
@@ -49,6 +49,15 @@ CurrentAudioSource = {
     'PartyRoom': None,
     'YogaStudio': None,
 }
+
+# Volume slider registry for DSP feedback
+_VolumeSliders = {}
+
+def RegisterVolumeSlider(room, slider):
+    """Register a slider to receive volume feedback for a room"""
+    ProgramLog(f'AV: Registering volume slider for {room}', 'warning')
+    _VolumeSliders[room] = slider
+    ProgramLog(f'AV: Slider registered for {room}, total sliders: {len(_VolumeSliders)}', 'warning')
 
 # ========================================================================================
 # UI Feedback Callbacks - For Multi-Panel Synchronization
@@ -380,8 +389,9 @@ def SetVolume(room, level, notifyUI=True):
         level: Volume level 0-100
         notifyUI: Whether to notify UI callbacks (set False to prevent feedback loops)
     """
+    ProgramLog(f'AV: SetVolume called - room={room}, level={level}', 'warning')
     if room not in variables.DSP_OUTPUTS:
-        print(f'AV Control: Unknown room {room}')
+        ProgramLog(f'AV: Warning - Unknown room {room}', 'warning')
         return
     
     # Clamp volume to valid range
@@ -392,7 +402,8 @@ def SetVolume(room, level, notifyUI=True):
     dspLevel = ScaleVolume(level)
     output = variables.DSP_OUTPUTS[room]
     
-    print(f'AV Control: {room} Volume set to {level} (DSP: {dspLevel}dB)')
+    ProgramLog(f'AV: Converted UI level {level} to DSP value {dspLevel}dB', 'warning')
+    ProgramLog(f'AV: Setting OutputAttenuation for {room} (Output {output}) to {dspLevel}dB', 'warning')
     devices.dvDSPLevel4.Set('OutputAttenuation', dspLevel, {'Output': output})
     
     # Notify registered UI callbacks
@@ -425,19 +436,20 @@ def SetMute(room, muteState, notifyUI=True):
     
     Args:
         room: Room name ('PartyRoom', 'YogaStudio', 'TerraceGallery', 'Gym', 'Courtyard')
-        muteState: True for mute, False for unmute
+        muteState: True to mute, False to unmute
         notifyUI: Whether to notify UI callbacks (set False to prevent feedback loops)
     """
+    ProgramLog(f'AV: SetMute called - room={room}, state={muteState}', 'warning')
     if room not in variables.DSP_OUTPUTS:
-        print(f'AV Control: Unknown room {room}')
+        ProgramLog(f'AV: Warning - Unknown room {room}', 'warning')
         return
     
     AudioMuteState[room] = muteState
     output = variables.DSP_OUTPUTS[room]
-    muteValue = 'On' if muteState else 'Off'
+    dspMuteValue = 'On' if muteState else 'Off'
     
-    print(f'AV Control: {room} Mute set to {muteValue}')
-    devices.dvDSPLevel4.Set('OutputMute', muteValue, {'Output': output})
+    ProgramLog(f'AV: Setting OutputMute for {room} (Output {output}) to {dspMuteValue}', 'warning')
+    devices.dvDSPLevel4.Set('OutputMute', dspMuteValue, {'Output': output})
     
     # Notify registered UI callbacks
     if notifyUI:
@@ -611,24 +623,26 @@ def SetAudioSource(room, source):
         room: Room name ('PartyRoom', 'YogaStudio')
         source: Source name ('MusicPlayer', 'BTPlate')
     """
+    ProgramLog(f'AV: SetAudioSource called - room={room}, source={source}', 'warning')
     if room not in variables.AUDIO_SOURCES:
-        print(f'AV Control: Unknown room {room} for audio source')
+        ProgramLog(f'AV: Warning - Unknown room {room} for audio source', 'warning')
         return
     
     if source not in variables.AUDIO_SOURCES[room]:
-        print(f'AV Control: Unknown source {source} for room {room}')
+        ProgramLog(f'AV: Warning - Unknown source {source} for room {room}', 'warning')
         return
     
     CurrentAudioSource[room] = source
     output = variables.DSP_OUTPUTS[room]
     
-    print(f'AV Control: {room} Audio Source set to {source}')
+    ProgramLog(f'AV: Setting {room} audio source to {source}', 'warning')
     _NotifyUICallbacks('SourceChanged', room=room, source=source)
     
     # Mute all sources first, then unmute selected
     for srcName, srcConfig in variables.AUDIO_SOURCES[room].items():
         srcType = srcConfig['Type']
         muteState = 'Off' if srcName == source else 'On'
+        ProgramLog(f'AV: Setting {srcType} source {srcName} to {muteState} for {room}', 'warning')
         
         if 'Channel' in srcConfig:
             # Single channel source
@@ -637,6 +651,7 @@ def SetAudioSource(room, source):
             # Multi-channel source (like BT Plate with 4 channels)
             for channel in srcConfig['Channels']:
                 SetMixpointMute(srcType, channel, output, muteState)
+    ProgramLog(f'AV: Source routing complete for {room} -> {source}', 'warning')
 
 def GetCurrentAudioSource(room):
     """Get current audio source for a room"""

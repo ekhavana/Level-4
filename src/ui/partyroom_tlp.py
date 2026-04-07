@@ -55,6 +55,9 @@ PartyRmSendToMES = MESet([PartyRoomTVAudioSendToAllBtn, PartyRoomTVAudioSendToGy
                           PartyRoomTVAudioSendToPartyRmBtn, PartyRoomTVAudioSendToTerraceBtn, 
                           PartyRoomTVAudioSendToYogaBtn, PartyRoomTVAudioSendToCourtyardBtn])
 
+# Register volume slider for DSP feedback (at module load time)
+av.RegisterVolumeSlider('PartyRoom', PartyRoomVolumeLvl)
+
 # ========================================================================================
 # Event Handlers
 # ========================================================================================
