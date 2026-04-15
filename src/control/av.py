@@ -11,6 +11,9 @@ This module handles:
 # Extron Library imports
 from extronlib.system import Wait, ProgramLog
 
+# Python imports
+import json
+
 # Project imports
 import devices
 import variables
@@ -58,6 +61,32 @@ def RegisterVolumeSlider(room, slider):
     ProgramLog(f'AV: Registering volume slider for {room}', 'warning')
     _VolumeSliders[room] = slider
     ProgramLog(f'AV: Slider registered for {room}, total sliders: {len(_VolumeSliders)}', 'warning')
+
+# ========================================================================================
+# Level 1 Processor Feedback
+# ========================================================================================
+
+# Map internal room names to Level 1 zone names (must match exactly)
+_ZONE_NAME_MAP = {
+    'PartyRoom': 'Party Room',
+    'YogaStudio': 'Yoga Studio',
+    'TerraceGallery': 'Terrace Gallery',
+    'Gym': 'Level 4 Gym',
+    'Courtyard': 'Level 4 Courtyard',
+}
+
+def _SendFeedbackToLevel1(command, room, **kwargs):
+    """Send feedback message to Level 1 processor"""
+    try:
+        # Convert internal room name to Level 1 zone name
+        zone = _ZONE_NAME_MAP.get(room, room)
+        data = {'zone': zone}
+        data.update(kwargs)
+        message = json.dumps({'command': command, 'data': data}) + '\n'
+        devices.dvRemoteLevel1.Send(message)
+        ProgramLog(f'AV: Sent {command} to Level1 - zone={zone}, data={kwargs}', 'warning')
+    except Exception as e:
+        ProgramLog(f'AV: Error sending feedback to Level1 - {e}', 'error')
 
 # ========================================================================================
 # UI Feedback Callbacks - For Multi-Panel Synchronization

@@ -94,8 +94,37 @@ def DSPVolumeHandler(command, value, qualifier):
                 slider.SetFill(uiLevel)  # Use SetFill() method for Extron sliders
             else:
                 ProgramLog(f'System: Warning - No slider registered for {room}', 'warning')
+            
+            # Send feedback to Level 1 processor
+            av._SendFeedbackToLevel1('VolumeFeedback', room, level=uiLevel)
+            
         except (ValueError, TypeError) as e:
             ProgramLog(f'System: DSP volume feedback error - {e}', 'error')
+
+def DSPMuteHandler(command, value, qualifier):
+    """Handle DSP mute feedback and update UI buttons"""
+    ProgramLog(f'System: DSP mute feedback - command={command}, value={value}, qualifier={qualifier}', 'warning')
+    output = qualifier.get('Output')
+    if not output:
+        return
+    
+    # Map output number to room name
+    room = None
+    for roomName, outputNum in variables.DSP_OUTPUTS.items():
+        if outputNum == output:
+            room = roomName
+            break
+    
+    if room:
+        try:
+            ProgramLog(f'System: Updating {room} mute to {value}', 'warning')
+            av.AudioMuteState[room] = (value == 'On')
+            
+            # Send feedback to Level 1 processor
+            av._SendFeedbackToLevel1('MuteFeedback', room, state=value)
+            
+        except Exception as e:
+            ProgramLog(f'System: DSP mute feedback error - {e}', 'error')
 
 # ========================================================================================
 # Initialization
@@ -113,11 +142,13 @@ def Initialize():
     devices.dvTerraceGalleryDisplay1.SubscribeStatus('ConnectionStatus', None, TerraceGalleryDisplay1ConnectionHandler)
     devices.dvTerraceGalleryDisplay2.SubscribeStatus('ConnectionStatus', None, TerraceGalleryDisplay2ConnectionHandler)
     
-    # Subscribe to DSP volume feedback for all outputs
-    ProgramLog('System: Subscribing to DSP volume feedback', 'warning')
+    # Subscribe to DSP volume and mute feedback for all outputs
+    ProgramLog('System: Subscribing to DSP volume and mute feedback', 'warning')
     for room, output in variables.DSP_OUTPUTS.items():
         devices.dvDSPLevel4.SubscribeStatus('OutputAttenuation', {'Output': output}, DSPVolumeHandler)
         ProgramLog(f'System: Subscribed to OutputAttenuation for {room} (Output {output})', 'warning')
+        devices.dvDSPLevel4.SubscribeStatus('OutputMute', {'Output': output}, DSPMuteHandler)
+        ProgramLog(f'System: Subscribed to OutputMute for {room} (Output {output})', 'warning')
     
     # Connect all network devices
     ProgramLog('System: Connecting to DSP', 'warning')
@@ -127,6 +158,10 @@ def Initialize():
     devices.dvYogaStudioDisplay.Connect()
     devices.dvTerraceGalleryDisplay1.Connect()
     devices.dvTerraceGalleryDisplay2.Connect()
+    
+    # Connect to Level 1 processor for feedback
+    ProgramLog('System: Connecting to Level 1 processor for feedback', 'warning')
+    devices.dvRemoteLevel1.Connect()
     
     # Start remote control server
     remote.Start()

@@ -46,3 +46,17 @@ dvPartyRmDisplay = GetConnectionHandler(_moduleInterfacePartyRmDisplay, 'Power',
 dvYogaStudioDisplay = GetConnectionHandler(_moduleInterfaceYogaStudioDisplay, 'Power', pollFrequency=30)
 dvTerraceGalleryDisplay1 = GetConnectionHandler(_moduleInterfaceTerraceGalleryDisplay1, 'Power', pollFrequency=30)
 dvTerraceGalleryDisplay2 = GetConnectionHandler(_moduleInterfaceTerraceGalleryDisplay2, 'Power', pollFrequency=30)
+
+# Connection to Level 1 Processor for volume/mute feedback
+# Keep-alive function for raw TCP connections
+def _level1_keepalive(handler):
+    """Send keepalive to Level 1 processor"""
+    try:
+        handler.Send('\n')
+    except:
+        pass
+
+# Create connection to Level 1 processor (172.22.10.100:10000)
+_rawRemoteLevel1 = EthernetClientInterface('172.22.10.100', 10000, Protocol='TCP')
+# Wrap with ConnectionHandler for automatic reconnection
+dvRemoteLevel1 = GetConnectionHandler(_rawRemoteLevel1, _level1_keepalive, pollFrequency=10)
