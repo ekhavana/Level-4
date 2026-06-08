@@ -83,8 +83,8 @@ DSP_VIRTUAL_RECEIVES = {
 # Combined input references for routing (type indicates Analog, Dante, or VirtualReceive)
 DSP_INPUTS = {
     'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-    'BTPlate_YogaStudio': {'Type': 'VirtualReceive', 'Channels': ['A', 'B', 'C', 'D']},  # Virtual Receive A-D
-    'BTPlate_PartyRoom': {'Type': 'VirtualReceive', 'Channels': ['E', 'F', 'G', 'H']},   # Virtual Receive E-H
+    'BTPlate_YogaStudio': {'Type': 'VirtualReceive', 'Channel': 'A'},  # Virtual Receive A
+    'BTPlate_PartyRoom': {'Type': 'VirtualReceive', 'Channel': 'B'},   # Virtual Receive B
     'YogaStudioTV': {'Type': 'Dante', 'Channel': '9'},
     'TerraceGalleryTV1': {'Type': 'Dante', 'Channel': '10'},
     'TerraceGalleryTV2': {'Type': 'Dante', 'Channel': '11'},
@@ -95,11 +95,11 @@ DSP_INPUTS = {
 AUDIO_SOURCES = {
     'PartyRoom': {
         'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-        'BTPlate': {'Type': 'VirtualReceive', 'Channels': ['E', 'F', 'G', 'H']},  # Virtual Receive E-H (Send B)
+        'BTPlate': {'Type': 'VirtualReceive', 'Channel': 'B'},  # Virtual Receive B
     },
     'YogaStudio': {
         'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
-        'BTPlate': {'Type': 'VirtualReceive', 'Channels': ['A', 'B', 'C', 'D']},  # Virtual Receive A-D (Send A)
+        'BTPlate': {'Type': 'VirtualReceive', 'Channel': 'A'},  # Virtual Receive A
     },
 }
 

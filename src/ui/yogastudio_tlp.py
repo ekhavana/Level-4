@@ -31,8 +31,8 @@ BtnHelpPageClose = Button(dvTLPYogaStudio, 9057)
 
 # Room Control Buttons
 #YogaStudioCancelBtn = Button(dvTLPYogaStudio, 44)
-YogaStudioMusicPlayerBtn = Button(dvTLPYogaStudio, 283)
-YogaStudioBTPlateBtn = Button(dvTLPYogaStudio, 282)
+YogaStudioMusicPlayerBtn = Button(dvTLPYogaStudio, 282)
+YogaStudioBTPlateBtn = Button(dvTLPYogaStudio, 283)
 YogaStudioMuteBtn = Button(dvTLPYogaStudio, 275)
 YogaStudioVolumeLvl = Slider(dvTLPYogaStudio, 276)
 

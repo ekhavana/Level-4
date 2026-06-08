@@ -29,6 +29,11 @@ def DSPConnectionHandler(command, value, qualifier):
         for room, output in variables.DSP_OUTPUTS.items():
             devices.dvDSPLevel4.Update('OutputAttenuation', {'Output': output})
             ProgramLog(f'System: Requested volume feedback for {room} (Output {output})', 'warning')
+        
+        # Ensure Courtyard is unmuted (fix for constantly muted issue)
+        ProgramLog('System: Unmuting Courtyard output', 'warning')
+        av.SetMute('Courtyard', False, notifyUI=False)
+        
         ProgramLog('System: Volume feedback initialization complete', 'warning')
     elif value == 'Disconnected':
         ProgramLog('System: DSP Level 4 Disconnected', 'error')

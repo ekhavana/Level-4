@@ -10,7 +10,7 @@ Both panels control the same devices and stay synchronized.
 
 # Extron Library imports
 from extronlib import event
-from extronlib.ui import Button
+from extronlib.ui import Button, Slider
 
 # Project imports
 import devices
@@ -39,6 +39,10 @@ TLP1_BtnPowerOffYes = Button(dvTLP1, 9028)
 TLP1_BtnPowerOffCancel = Button(dvTLP1, 9029)
 TLP1_BtnHelp = Button(dvTLP1, 8117)
 TLP1_BtnHelpPageClose = Button(dvTLP1, 9057)
+
+# Volume Control - Panel 1
+TLP1_BtnMute = Button(dvTLP1, 4)
+TLP1_VolumeSlider = Slider(dvTLP1, 5)
 
 #TLP1_TerraceGalleryCancelBtn = Button(dvTLP1, 43)
 TLP1_TerraceGalleryTV1PowerOnBtn = Button(dvTLP1, 257)
@@ -71,6 +75,10 @@ TLP2_BtnPowerOffCancel = Button(dvTLP2, 9029)
 TLP2_BtnHelp = Button(dvTLP2, 8117)
 TLP2_BtnHelpPageClose = Button(dvTLP2, 9057)
 
+# Volume Control - Panel 2
+TLP2_BtnMute = Button(dvTLP2, 4)
+TLP2_VolumeSlider = Slider(dvTLP2, 5)
+
 #TLP2_TerraceGalleryCancelBtn = Button(dvTLP2, 43)
 TLP2_TerraceGalleryTV1PowerOnBtn = Button(dvTLP2, 257)
 TLP2_TerraceGalleryTV1PowerOffBtn = Button(dvTLP2, 258)
@@ -102,6 +110,7 @@ MirroredButtonPairs = {
     9029: (TLP1_BtnPowerOffCancel, TLP2_BtnPowerOffCancel),
     8117: (TLP1_BtnHelp, TLP2_BtnHelp),
     9057: (TLP1_BtnHelpPageClose, TLP2_BtnHelpPageClose),
+    4: (TLP1_BtnMute, TLP2_BtnMute),
     #43: (TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn),
     257: (TLP1_TerraceGalleryTV1PowerOnBtn, TLP2_TerraceGalleryTV1PowerOnBtn),
     258: (TLP1_TerraceGalleryTV1PowerOffBtn, TLP2_TerraceGalleryTV1PowerOffBtn),
@@ -128,7 +137,35 @@ AllPowerOffYesBtns = [TLP1_BtnPowerOffYes, TLP2_BtnPowerOffYes]
 AllPowerOffCancelBtns = [TLP1_BtnPowerOffCancel, TLP2_BtnPowerOffCancel]
 AllHelpBtns = [TLP1_BtnHelp, TLP2_BtnHelp]
 AllHelpPageCloseBtns = [TLP1_BtnHelpPageClose, TLP2_BtnHelpPageClose]
+AllMuteBtns = [TLP1_BtnMute, TLP2_BtnMute]
+AllVolumeSliders = [TLP1_VolumeSlider, TLP2_VolumeSlider]
 #AllCancelBtns = [TLP1_TerraceGalleryCancelBtn, TLP2_TerraceGalleryCancelBtn]
+
+# Register volume slider for DSP feedback (at module load time)
+# Only register TLP1 - TLP2 will be synced via callbacks
+av.RegisterVolumeSlider('TerraceGallery', TLP1_VolumeSlider)
+
+# ========================================================================================
+# Feedback Callbacks for Multi-Panel Synchronization
+# ========================================================================================
+
+def OnVolumeChanged(room, level):
+    """Callback when volume changes from DSP feedback or other source"""
+    if room == 'TerraceGallery':
+        print(f'Terrace Gallery: Volume feedback - {level}')
+        # Update TLP2 slider (TLP1 is updated by DSP feedback handler)
+        TLP2_VolumeSlider.SetFill(level)
+
+def OnMuteChanged(room, muted):
+    """Callback when mute state changes from DSP feedback or other source"""
+    if room == 'TerraceGallery':
+        print(f'Terrace Gallery: Mute feedback - {muted}')
+        # Update both mute buttons
+        SyncButtonState(4, 1 if muted else 0)
+
+# Register callbacks for state change notifications
+av.RegisterUICallback('VolumeChanged', OnVolumeChanged)
+av.RegisterUICallback('MuteChanged', OnMuteChanged)
 
 AllTV1PowerOnBtns = [TLP1_TerraceGalleryTV1PowerOnBtn, TLP2_TerraceGalleryTV1PowerOnBtn]
 AllTV1PowerOffBtns = [TLP1_TerraceGalleryTV1PowerOffBtn, TLP2_TerraceGalleryTV1PowerOffBtn]
@@ -262,6 +299,28 @@ def BtnHelpPageClosePressed(button, state):
     """Close help popup"""
     print('Terrace Gallery: Help page closed')
     SyncAllPanelsHidePopup(variables.POPUPS['Help'])
+
+# Volume Control Events -----------------------------------------------------------------
+
+@event(AllMuteBtns, 'Pressed')
+def BtnMutePressed(button, state):
+    """Toggle mute state"""
+    print('Terrace Gallery: Mute button pressed')
+    newState = av.TerraceGalleryToggleMute()
+    # Sync button state across both panels
+    SyncButtonState(4, 1 if newState else 0)
+
+@event(AllVolumeSliders, 'Changed')
+def VolumeSliderChanged(slider, state, value):
+    """Handle volume slider changes"""
+    print(f'Terrace Gallery: Volume changed to {value}')
+    # Sync slider value across both panels manually
+    for otherSlider in AllVolumeSliders:
+        if otherSlider != slider:
+            otherSlider.SetFill(value)
+    # Call AV control function with notifyUI=False to prevent feedback loop
+    # (we already synced the sliders manually above)
+    av.SetVolume('TerraceGallery', value, notifyUI=False)
 
 #@event(AllCancelBtns, 'Pressed')
 #def TerraceGalleryCancelBtnPressed(button, state):

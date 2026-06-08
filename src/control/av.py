@@ -622,26 +622,32 @@ def CourtyardSystemPowerOff(callback=None):
 # DSP Audio Source Selection Functions
 # ========================================================================================
 
+def _GetMixpointInput(inputType, inputChannel):
+    """Resolve the Input qualifier value for MixpointGain/MixpointMute based on input type."""
+    if inputType == 'VirtualReceive':
+        return f'V. Return {inputChannel}'
+    else:  # Analog or Dante - both use numeric channel string '1'-'12'
+        return inputChannel
+
+def SetMixpointLevel(inputType, inputChannel, outputChannel, level):
+    """
+    Set mixpoint gain (crosspoint level) for any input type.
+    All inputs use MixpointGain with {'Input': ..., 'Output': ...}.
+    Analog/Dante use numeric channel string; VirtualReceive uses 'V. Return X'.
+    """
+    inputKey = _GetMixpointInput(inputType, inputChannel)
+    ProgramLog(f'AV: MixpointGain - Input={inputKey}, Output={outputChannel}, Level={level}dB', 'warning')
+    devices.dvDSPLevel4.Set('MixpointGain', level, {'Input': inputKey, 'Output': outputChannel})
+
 def SetMixpointMute(inputType, inputChannel, outputChannel, muteState):
     """
-    Set mixpoint mute state based on input type (Analog, Dante, or VirtualReceive)
-    
-    Args:
-        inputType: 'Analog', 'Dante', or 'VirtualReceive'
-        inputChannel: Input channel number as string
-        outputChannel: Output channel number as string
-        muteState: 'On' or 'Off'
+    Set mixpoint mute (crosspoint mute) for any input type.
+    All inputs use MixpointMute with {'Input': ..., 'Output': ...}.
+    Analog/Dante use numeric channel string; VirtualReceive uses 'V. Return X'.
     """
-    if inputType == 'Analog':
-        # For analog inputs, use standard MixpointMute
-        devices.dvDSPLevel4.Set('MixpointMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
-    elif inputType == 'Dante':
-        # For Dante inputs, use Dante-specific mixpoint control
-        devices.dvDSPLevel4.Set('MixpointMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
-    elif inputType == 'VirtualReceive':
-        # For Virtual Receive inputs (BT Plates routed through Virtual Sends A/B)
-        # Virtual Receives use VirtualReturnMute command
-        devices.dvDSPLevel4.Set('VirtualReturnMute', muteState, {'Input': inputChannel, 'Output': outputChannel})
+    inputKey = _GetMixpointInput(inputType, inputChannel)
+    ProgramLog(f'AV: MixpointMute - Input={inputKey}, Output={outputChannel}, Mute={muteState}', 'warning')
+    devices.dvDSPLevel4.Set('MixpointMute', muteState, {'Input': inputKey, 'Output': outputChannel})
 
 def SetAudioSource(room, source):
     """
@@ -667,19 +673,30 @@ def SetAudioSource(room, source):
     ProgramLog(f'AV: Setting {room} audio source to {source}', 'warning')
     _NotifyUICallbacks('SourceChanged', room=room, source=source)
     
-    # Mute all sources first, then unmute selected
+    # Configure all sources: set level and unmute for selected, just mute for unselected
     for srcName, srcConfig in variables.AUDIO_SOURCES[room].items():
         srcType = srcConfig['Type']
-        muteState = 'Off' if srcName == source else 'On'
-        ProgramLog(f'AV: Setting {srcType} source {srcName} to {muteState} for {room}', 'warning')
+        isSelected = (srcName == source)
         
-        if 'Channel' in srcConfig:
-            # Single channel source
-            SetMixpointMute(srcType, srcConfig['Channel'], output, muteState)
-        elif 'Channels' in srcConfig:
-            # Multi-channel source (like BT Plate with 4 channels)
-            for channel in srcConfig['Channels']:
-                SetMixpointMute(srcType, channel, output, muteState)
+        if isSelected:
+            # Selected source: Set crosspoint level to 0dB (unity gain) and unmute
+            ProgramLog(f'AV: Activating {srcType} source {srcName} - Setting level to 0dB and unmuting for {room}', 'warning')
+            if 'Channel' in srcConfig:
+                SetMixpointLevel(srcType, srcConfig['Channel'], output, 0)
+                SetMixpointMute(srcType, srcConfig['Channel'], output, 'Off')
+            elif 'Channels' in srcConfig:
+                for channel in srcConfig['Channels']:
+                    SetMixpointLevel(srcType, channel, output, 0)
+                    SetMixpointMute(srcType, channel, output, 'Off')
+        else:
+            # Unselected source: Just mute (don't change level)
+            ProgramLog(f'AV: Deactivating {srcType} source {srcName} - Muting for {room}', 'warning')
+            if 'Channel' in srcConfig:
+                SetMixpointMute(srcType, srcConfig['Channel'], output, 'On')
+            elif 'Channels' in srcConfig:
+                for channel in srcConfig['Channels']:
+                    SetMixpointMute(srcType, channel, output, 'On')
+    
     ProgramLog(f'AV: Source routing complete for {room} -> {source}', 'warning')
 
 def GetCurrentAudioSource(room):
@@ -716,55 +733,57 @@ def RouteAudioToZone(source, zone):
         zone: Destination zone name from DSP_OUTPUTS
     """
     if source not in variables.DSP_INPUTS:
-        print(f'AV Control: Unknown source {source}')
+        ProgramLog(f'AV: ERROR - Unknown source {source}', 'error')
         return
     
     if zone not in variables.DSP_OUTPUTS:
-        print(f'AV Control: Unknown zone {zone}')
+        ProgramLog(f'AV: ERROR - Unknown zone {zone}', 'error')
         return
     
     sourceConfig = variables.DSP_INPUTS[source]
     outputChannel = variables.DSP_OUTPUTS[zone]
     srcType = sourceConfig['Type']
     
-    print(f'AV Control: Routing {source} to {zone}')
+    ProgramLog(f'AV: RouteAudioToZone - {source} ({srcType}) -> {zone} (Output {outputChannel})', 'warning')
     
     if 'Channel' in sourceConfig:
-        # Single channel source
+        SetMixpointLevel(srcType, sourceConfig['Channel'], outputChannel, 0)
         SetMixpointMute(srcType, sourceConfig['Channel'], outputChannel, 'Off')
     elif 'Channels' in sourceConfig:
-        # Multi-channel source
         for channel in sourceConfig['Channels']:
+            SetMixpointLevel(srcType, channel, outputChannel, 0)
             SetMixpointMute(srcType, channel, outputChannel, 'Off')
 
 def RouteAudioToAllZones(source):
     """Route audio from a source to all zones"""
     if source not in variables.DSP_INPUTS:
-        print(f'AV Control: Unknown source {source}')
+        ProgramLog(f'AV: ERROR - Unknown source {source}', 'error')
         return
     
     sourceConfig = variables.DSP_INPUTS[source]
     srcType = sourceConfig['Type']
     
-    print(f'AV Control: Routing {source} to All Zones')
+    ProgramLog(f'AV: RouteAudioToAllZones - {source} ({srcType}) -> ALL ZONES', 'warning')
     
     for zoneName, outputChannel in variables.DSP_OUTPUTS.items():
         if 'Channel' in sourceConfig:
+            SetMixpointLevel(srcType, sourceConfig['Channel'], outputChannel, 0)
             SetMixpointMute(srcType, sourceConfig['Channel'], outputChannel, 'Off')
         elif 'Channels' in sourceConfig:
             for channel in sourceConfig['Channels']:
+                SetMixpointLevel(srcType, channel, outputChannel, 0)
                 SetMixpointMute(srcType, channel, outputChannel, 'Off')
 
 def ClearAudioRouting(source):
     """Clear all audio routing from a source"""
     if source not in variables.DSP_INPUTS:
-        print(f'AV Control: Unknown source {source}')
+        ProgramLog(f'AV: ERROR - Unknown source {source}', 'error')
         return
     
     sourceConfig = variables.DSP_INPUTS[source]
     srcType = sourceConfig['Type']
     
-    print(f'AV Control: Clearing routing from {source}')
+    ProgramLog(f'AV: ClearAudioRouting - Muting all outputs for {source} ({srcType})', 'warning')
     
     for zoneName, outputChannel in variables.DSP_OUTPUTS.items():
         if 'Channel' in sourceConfig:
