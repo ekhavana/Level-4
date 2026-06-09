@@ -38,8 +38,8 @@ dvDSPLevel4 = GetConnectionHandler(_moduleInterfaceDSP, 'PartNumber', pollFreque
 # Create display module interfaces
 _moduleInterfacePartyRmDisplay = modSamsungTV.EthernetClass('172.22.10.51', 1515, Model='QB85C')
 _moduleInterfaceYogaStudioDisplay = modSamsungTV.EthernetClass('172.22.10.52', 1515, Model='QB75C')
-_moduleInterfaceTerraceGalleryDisplay1 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.54', 2001, Model='QN43LS03DAFXZA')
-_moduleInterfaceTerraceGalleryDisplay2 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.56', 2001, Model='QN43LS03DAFXZA')
+_moduleInterfaceTerraceGalleryDisplay1 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.54', 8001, Model='QN43LS03DAFXZA')
+_moduleInterfaceTerraceGalleryDisplay2 = modSamsungTVQN.SerialOverEthernetClass('172.22.10.56', 8001, Model='QN43LS03DAFXZA')
 
 # Wrap all displays with ConnectionHandler for automatic reconnection
 dvPartyRmDisplay = GetConnectionHandler(_moduleInterfacePartyRmDisplay, 'Power', pollFrequency=30)
