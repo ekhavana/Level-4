@@ -85,10 +85,16 @@ DSP_INPUTS = {
     'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
     'BTPlate_YogaStudio': {'Type': 'VirtualReceive', 'Channel': 'A'},  # Virtual Receive A
     'BTPlate_PartyRoom': {'Type': 'VirtualReceive', 'Channel': 'B'},   # Virtual Receive B
-    'YogaStudioTV': {'Type': 'Dante', 'Channel': '9'},
-    'TerraceGalleryTV1': {'Type': 'Dante', 'Channel': '10'},
-    'TerraceGalleryTV2': {'Type': 'Dante', 'Channel': '11'},
-    'PartyRoomTV': {'Type': 'Dante', 'Channel': '12'},
+    'YogaStudioTV': {'Type': 'VirtualReceive', 'Channel': 'C'},        # Virtual Receive C (from Dante 9)
+    'TerraceGalleryTV1': {'Type': 'VirtualReceive', 'Channel': 'D'},   # Virtual Receive D (from Dante 10)
+    'TerraceGalleryTV2': {'Type': 'VirtualReceive', 'Channel': 'E'},   # Virtual Receive E (from Dante 11)
+    'PartyRoomTV': {'Type': 'VirtualReceive', 'Channel': 'F'},         # Virtual Receive F (from Dante 12)
+}
+
+# Maps each room to its TV input source (used to clear TV routing when switching to Music/BT)
+ROOM_TV_SOURCE = {
+    'YogaStudio': 'YogaStudioTV',
+    'PartyRoom': 'PartyRoomTV',
 }
 
 # Audio Source Mapping for each room (for source selection buttons)

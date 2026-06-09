@@ -127,6 +127,7 @@ def YogaStudioMusicPlayerBtnPressed(button, state):
     """Select Music Player as audio source"""
     print('Yoga Studio: Music Player selected')
     YogaStudioAudioSource.SetCurrent(YogaStudioMusicPlayerBtn)
+    YogaStudioSendToMES.SetCurrent(None)
     av.YogaStudioSelectMusicPlayer()
 
 @event(YogaStudioBTPlateBtn, 'Pressed')
@@ -134,6 +135,7 @@ def YogaStudioBTPlateBtnPressed(button, state):
     """Select Bluetooth Plate as audio source"""
     print('Yoga Studio: Bluetooth Plate selected')
     YogaStudioAudioSource.SetCurrent(YogaStudioBTPlateBtn)
+    YogaStudioSendToMES.SetCurrent(None)
     av.YogaStudioSelectBTPlate()
 
 # Volume Control Events -----------------------------------------------------------------
@@ -174,6 +176,7 @@ def YogaStudioTVAudioSendToAllBtnPressed(button, state):
     """Route TV audio to all zones"""
     print('Yoga Studio: Send TV Audio to All Zones')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToAllBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToAll()
 
 @event(YogaStudioTVAudioSendToGymBtn, 'Pressed')
@@ -181,6 +184,7 @@ def YogaStudioTVAudioSendToGymBtnPressed(button, state):
     """Route TV audio to Gym"""
     print('Yoga Studio: Send TV Audio to Gym')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToGymBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToGym()
 
 @event(YogaStudioTVAudioSendToYogaBtn, 'Pressed')
@@ -188,6 +192,7 @@ def YogaStudioTVAudioSendToYogaBtnPressed(button, state):
     """Route TV audio to Yoga Studio only"""
     print('Yoga Studio: Send TV Audio to Yoga Studio')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToYogaBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToYogaStudio()
 
 @event(YogaStudioTVAudioSendToTerraceBtn, 'Pressed')
@@ -195,6 +200,7 @@ def YogaStudioTVAudioSendToTerraceBtnPressed(button, state):
     """Route TV audio to Terrace Gallery"""
     print('Yoga Studio: Send TV Audio to Terrace')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToTerraceBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToTerrace()
 
 @event(YogaStudioTVAudioSendToPartyRmBtn, 'Pressed')
@@ -202,6 +208,7 @@ def YogaStudioTVAudioSendToPartyRmBtnPressed(button, state):
     """Route TV audio to Party Room"""
     print('Yoga Studio: Send TV Audio to Party Room')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToPartyRmBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToPartyRoom()
 
 @event(YogaStudioTVAudioSendToCourtyardBtn, 'Pressed')
@@ -209,4 +216,5 @@ def YogaStudioTVAudioSendToCourtyardBtnPressed(button, state):
     """Route TV audio to Courtyard"""
     print('Yoga Studio: Send TV Audio to Courtyard')
     YogaStudioSendToMES.SetCurrent(YogaStudioTVAudioSendToCourtyardBtn)
+    YogaStudioAudioSource.SetCurrent(None)
     av.YogaStudioTVRouteToCourtyard()

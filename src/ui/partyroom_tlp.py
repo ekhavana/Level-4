@@ -127,6 +127,7 @@ def PartyRoomMusicPlayerBtnPressed(button, state):
     """Select Music Player as audio source"""
     print('Party Room: Music Player selected')
     PartyRmAudioSource.SetCurrent(PartyRoomMusicPlayerBtn)
+    PartyRmSendToMES.SetCurrent(None)
     av.PartyRoomSelectMusicPlayer()
 
 @event(PartyRoomBTPlateBtn, 'Pressed')
@@ -134,6 +135,7 @@ def PartyRoomBTPlateBtnPressed(button, state):
     """Select Bluetooth Plate as audio source"""
     print('Party Room: Bluetooth Plate selected')
     PartyRmAudioSource.SetCurrent(PartyRoomBTPlateBtn)
+    PartyRmSendToMES.SetCurrent(None)
     av.PartyRoomSelectBTPlate()
 
 # Volume Control Events -----------------------------------------------------------------
@@ -174,6 +176,7 @@ def PartyRoomTVAudioSendToAllBtnPressed(button, state):
     """Route TV audio to all zones"""
     print('Party Room: Send TV Audio to All Zones')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToAllBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToAll()
 
 @event(PartyRoomTVAudioSendToGymBtn, 'Pressed')
@@ -181,6 +184,7 @@ def PartyRoomTVAudioSendToGymBtnPressed(button, state):
     """Route TV audio to Gym"""
     print('Party Room: Send TV Audio to Gym')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToGymBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToGym()
 
 @event(PartyRoomTVAudioSendToYogaBtn, 'Pressed')
@@ -188,6 +192,7 @@ def PartyRoomTVAudioSendToYogaBtnPressed(button, state):
     """Route TV audio to Yoga Studio"""
     print('Party Room: Send TV Audio to Yoga Studio')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToYogaBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToYogaStudio()
 
 @event(PartyRoomTVAudioSendToTerraceBtn, 'Pressed')
@@ -195,6 +200,7 @@ def PartyRoomTVAudioSendToTerraceBtnPressed(button, state):
     """Route TV audio to Terrace Gallery"""
     print('Party Room: Send TV Audio to Terrace')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToTerraceBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToTerrace()
 
 @event(PartyRoomTVAudioSendToPartyRmBtn, 'Pressed')
@@ -202,6 +208,7 @@ def PartyRoomTVAudioSendToPartyRmBtnPressed(button, state):
     """Route TV audio to Party Room only"""
     print('Party Room: Send TV Audio to Party Room')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToPartyRmBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToPartyRoom()
 
 @event(PartyRoomTVAudioSendToCourtyardBtn, 'Pressed')
@@ -209,4 +216,5 @@ def PartyRoomTVAudioSendToCourtyardBtnPressed(button, state):
     """Route TV audio to Courtyard"""
     print('Party Room: Send TV Audio to Courtyard')
     PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToCourtyardBtn)
+    PartyRmAudioSource.SetCurrent(None)
     av.PartyRoomTVRouteToCourtyard()

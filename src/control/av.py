@@ -673,6 +673,13 @@ def SetAudioSource(room, source):
     ProgramLog(f'AV: Setting {room} audio source to {source}', 'warning')
     _NotifyUICallbacks('SourceChanged', room=room, source=source)
     
+    # Clear this room's TV routing crosspoint before switching to Music/BT source
+    if room in variables.ROOM_TV_SOURCE:
+        tvSource = variables.ROOM_TV_SOURCE[room]
+        tvConfig = variables.DSP_INPUTS[tvSource]
+        ProgramLog(f'AV: Clearing TV crosspoint for {room} ({tvSource}) before source switch', 'warning')
+        SetMixpointMute(tvConfig['Type'], tvConfig['Channel'], output, 'On')
+    
     # Configure all sources: set level and unmute for selected, just mute for unselected
     for srcName, srcConfig in variables.AUDIO_SOURCES[room].items():
         srcType = srcConfig['Type']
@@ -746,6 +753,14 @@ def RouteAudioToZone(source, zone):
     
     ProgramLog(f'AV: RouteAudioToZone - {source} ({srcType}) -> {zone} (Output {outputChannel})', 'warning')
     
+    # Mute current audio source crosspoint for this zone (if zone has a managed audio source)
+    if zone in variables.AUDIO_SOURCES:
+        currentSource = CurrentAudioSource.get(zone)
+        if currentSource and currentSource in variables.AUDIO_SOURCES[zone]:
+            srcCfg = variables.AUDIO_SOURCES[zone][currentSource]
+            ProgramLog(f'AV: Muting current source {currentSource} crosspoint for {zone}', 'warning')
+            SetMixpointMute(srcCfg['Type'], srcCfg['Channel'], outputChannel, 'On')
+    
     if 'Channel' in sourceConfig:
         SetMixpointLevel(srcType, sourceConfig['Channel'], outputChannel, 0)
         SetMixpointMute(srcType, sourceConfig['Channel'], outputChannel, 'Off')
@@ -766,6 +781,14 @@ def RouteAudioToAllZones(source):
     ProgramLog(f'AV: RouteAudioToAllZones - {source} ({srcType}) -> ALL ZONES', 'warning')
     
     for zoneName, outputChannel in variables.DSP_OUTPUTS.items():
+        # Mute current audio source crosspoint for this zone (if zone has a managed audio source)
+        if zoneName in variables.AUDIO_SOURCES:
+            currentSource = CurrentAudioSource.get(zoneName)
+            if currentSource and currentSource in variables.AUDIO_SOURCES[zoneName]:
+                srcCfg = variables.AUDIO_SOURCES[zoneName][currentSource]
+                ProgramLog(f'AV: Muting current source {currentSource} crosspoint for {zoneName}', 'warning')
+                SetMixpointMute(srcCfg['Type'], srcCfg['Channel'], outputChannel, 'On')
+        
         if 'Channel' in sourceConfig:
             SetMixpointLevel(srcType, sourceConfig['Channel'], outputChannel, 0)
             SetMixpointMute(srcType, sourceConfig['Channel'], outputChannel, 'Off')
@@ -791,6 +814,15 @@ def ClearAudioRouting(source):
         elif 'Channels' in sourceConfig:
             for channel in sourceConfig['Channels']:
                 SetMixpointMute(srcType, channel, outputChannel, 'On')
+        
+        # Restore current audio source crosspoint for this zone (if zone has a managed audio source)
+        if zoneName in variables.AUDIO_SOURCES:
+            currentSource = CurrentAudioSource.get(zoneName)
+            if currentSource and currentSource in variables.AUDIO_SOURCES[zoneName]:
+                srcCfg = variables.AUDIO_SOURCES[zoneName][currentSource]
+                ProgramLog(f'AV: Restoring current source {currentSource} crosspoint for {zoneName}', 'warning')
+                SetMixpointLevel(srcCfg['Type'], srcCfg['Channel'], outputChannel, 0)
+                SetMixpointMute(srcCfg['Type'], srcCfg['Channel'], outputChannel, 'Off')
 
 # Party Room TV Audio Routing
 def PartyRoomTVRouteToAll():
