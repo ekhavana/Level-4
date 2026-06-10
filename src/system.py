@@ -66,6 +66,20 @@ def TerraceGalleryDisplay2ConnectionHandler(command, value, qualifier):
     elif value == 'Disconnected':
         ProgramLog('System: Terrace Gallery Display 2 Disconnected', 'error')
 
+def Level1FeedbackReceiveData(interface, data):
+    """Handle data received from the Level 1 processor on the feedback link.
+
+    The feedback client is wrapped by RawTcpHandler, which only marks the link
+    as 'Connected' and resets its keep-alive send counter when ResponseAccepted()
+    is called. Without this, the link never reports Connected and force-disconnects
+    after DisconnectLimit keep-alives. Any byte from Level 1 confirms the link.
+    """
+    try:
+        devices.dvRemoteLevel1.ResponseAccepted()
+        ProgramLog('System: Level 1 feedback link confirmed (data received)', 'warning')
+    except Exception as e:
+        ProgramLog(f'System: Level 1 feedback ResponseAccepted error - {e}', 'error')
+
 # ========================================================================================
 # DSP Feedback Handlers
 # ========================================================================================
@@ -166,6 +180,9 @@ def Initialize():
     
     # Connect to Level 1 processor for feedback
     ProgramLog('System: Connecting to Level 1 processor for feedback', 'warning')
+    # Confirm the link whenever Level 1 sends anything so RawTcpHandler reports
+    # Connected and resets its keep-alive counter (prevents false disconnect).
+    devices.dvRemoteLevel1.ReceiveData = Level1FeedbackReceiveData
     devices.dvRemoteLevel1.Connect()
     
     # Start remote control server

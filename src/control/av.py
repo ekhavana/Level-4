@@ -78,12 +78,18 @@ _ZONE_NAME_MAP = {
 def _SendFeedbackToLevel1(command, room, **kwargs):
     """Send feedback message to Level 1 processor"""
     try:
+        # Check if connected to Level 1 before sending
+        # Use underlying interface state which reflects actual socket status
+        handler = devices.dvRemoteLevel1
+        wrapped = getattr(handler, '_WrappedInterface', None)
+        if wrapped is None or getattr(wrapped, 'ConnectionStatus', None) != 'Connected':
+            return  # Silently drop feedback when not connected
         # Convert internal room name to Level 1 zone name
         zone = _ZONE_NAME_MAP.get(room, room)
         data = {'zone': zone}
         data.update(kwargs)
         message = json.dumps({'command': command, 'data': data}) + '\n'
-        devices.dvRemoteLevel1.Send(message)
+        handler.Send(message)
         ProgramLog(f'AV: Sent {command} to Level1 - zone={zone}, data={kwargs}', 'warning')
     except Exception as e:
         ProgramLog(f'AV: Error sending feedback to Level1 - {e}', 'error')
