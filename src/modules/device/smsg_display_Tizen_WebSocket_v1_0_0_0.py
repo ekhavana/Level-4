@@ -57,6 +57,8 @@ class DeviceClass:
             'ConnectionStatus': {'Status': {}},
             'Power': {'Status': {}},
             'Input': {'Status': {}},
+            'AudioMute': {'Status': {}},
+            'Volume': {'Status': {}},
         }
         self.Subscription = {}
 
@@ -67,20 +69,38 @@ class DeviceClass:
         self._clientName = 'ExtronControl'
         self._autoReconnect = True
         self._reconnectInterval = 5
-        self._keepAliveInterval = 30
+        # Some Tizen models (e.g. "The Frame" QN43LS03) ignore WebSocket ping
+        # frames for their idle timeout and drop remote-control sessions after
+        # ~40s. Keep the interval short and send a real application-level
+        # message (see _KeepAliveTick) so the TV's idle timer is reset.
+        self._keepAliveInterval = 20
         self._pendingKeys = []            # keys queued while the socket is not open
         self._maxQueued = 16
+        # Last power we commanded. KEY_POWER is a toggle — never send Off when
+        # already Off (that would turn the TV back on) or On when already On.
+        self._commandedPower = None
+        # KEY_POWER is toggle-only and the WS API exposes no power feedback, so
+        # when the socket first opens we must ASSUME a starting state. Models
+        # that keep the socket up in standby/Art Mode (e.g. The Terrace LST)
+        # can connect while actually off; assuming 'On' then locks On/Off into
+        # anti-phase. Set AssumeStandbyOnConnect=True (via devices.py) for such
+        # displays so we seed 'Off' instead. See _OnWsOpen.
+        self._assumeStandbyOnConnect = False
+        # KEY_MUTE is also a toggle — track commanded mute like Power.
+        self._commandedMute = 'Off'
+        # Relative volume only; remember last UI level we drove toward.
+        self._commandedVolume = 20
 
         self._ReconnectTimer = Timer(self._reconnectInterval, self._ReconnectTick)
-        self._ReconnectTimer.Stop()
+        self._safe_stop_timer(self._ReconnectTimer)
         self._KeepAliveTimer = Timer(self._keepAliveInterval, self._KeepAliveTick)
-        self._KeepAliveTimer.Stop()
+        self._safe_stop_timer(self._KeepAliveTimer)
 
         self._wol = None                  # lazily created UDP interface for Wake-on-LAN
         self.MACAddress = None
 
-        # Map UI input names to Tizen remote keys. KEY_HDMI is best-effort; adjust
-        # to KEY_SOURCE + navigation if discrete selection is required.
+        # Modern Tizen (Frame LS03 etc.) ignores KEY_HDMI1..4. Use either a
+        # SOURCE-menu key sequence (discrete) or KEY_HDMI (cycles connected HDMI).
         self._INPUT_KEY_MAP = {
             'HDMI 1': 'KEY_HDMI',
             'HDMI 2': 'KEY_HDMI',
@@ -89,6 +109,26 @@ class DeviceClass:
             'TV': 'KEY_TV',
             'Source': 'KEY_SOURCE',
         }
+        # Modern Tizen ignores KEY_HDMI1..4. Fixed Source-strip indexes also fail:
+        # disconnected HDMI ports are hidden. KEY_HDMI cycles connected HDMI only.
+        self._INPUT_KEY_MAP = {
+            'HDMI 1': 'KEY_HDMI',
+            'HDMI 2': 'KEY_HDMI',
+            'HDMI 3': 'KEY_HDMI',
+            'HDMI 4': 'KEY_HDMI',
+            'TV': 'KEY_TV',
+            'Source': 'KEY_SOURCE',
+        }
+        self._INPUT_KEY_SEQUENCES = {}
+        self._inputKeyInterval = 0.45
+        self._commandedInput = None
+        self._inputSeqId = 0
+        self._volumeScale = 100
+        self._volumeFloorSteps = 100
+        self._volumeKeyInterval = 0.05
+        self._volumeTick = None
+        self._volumeRampBusy = False
+        self._pendingVolumeTick = None
 
     # ------------------------------------------------------------------ #
     # Public control API (mirrors the other display modules)
@@ -102,30 +142,65 @@ class DeviceClass:
 
     def Update(self, command, qualifier=None):
         # The WebSocket remote API has no readable power/input state, so polling
-        # is a no-op. Connection liveness is maintained by WebSocket ping frames.
+        # is a no-op. Connection liveness is maintained by a periodic
+        # application-level keep-alive message (see _KeepAliveTick).
         method = getattr(self, 'Update%s' % command, None)
         if method is not None and callable(method):
             method(None, qualifier)
 
     def SetPower(self, value, qualifier):
+        """Discrete On/Off on top of Samsung's toggle-only KEY_POWER.
+
+        On  → WOL (always, if MAC set). If WS is up and we last commanded Off,
+              also send KEY_POWER once to wake Art Mode / network-standby.
+        Off → send KEY_POWER only if we believe the TV is On. Skip if already Off
+              so a second Off press does not toggle the TV back on.
+        """
         if value == 'On':
-            # The WebSocket server is unavailable while the TV is off, so wake it
-            # with a Wake-on-LAN magic packet. KEY_POWER is NOT sent here because
-            # it would toggle a TV that is already on back off.
-            ProgramLog('Tizen WS [{}]: Power On requested (WOL will be sent).'.format(
-                self._host()), 'warning')
+            # Only skip when we already commanded On *and* the socket is live
+            # (panel almost certainly displaying). Fully Off → WS closed → WOL.
+            if self._commandedPower == 'On' and self._wsState == 'open':
+                ProgramLog('Tizen WS [{}]: Power On — already On, skip toggle.'
+                           .format(self._host()), 'warning')
+                self.WriteStatus('Power', 'On', None)
+                return
+            ProgramLog('Tizen WS [{}]: Power On requested (WOL'
+                       '{}); commanded was {}, wsState={}.'
+                       .format(self._host(),
+                               '' if self.MACAddress else ' skipped — no MAC',
+                               self._commandedPower, self._wsState),
+                       'warning')
             if self.MACAddress:
                 self._send_wol()
             else:
-                ProgramLog('Tizen WS [{}]: Power On requested but no MACAddress '
-                           'configured for Wake-on-LAN.'.format(self._host()),
+                ProgramLog('Tizen WS [{}]: Power On — no MACAddress for WOL.'
+                           .format(self._host()), 'warning')
+            # Network standby / Art Mode: WS may stay up after Off — KEY_POWER wakes.
+            if self._wsState == 'open' and self._commandedPower == 'Off':
+                ProgramLog('Tizen WS [{}]: Power On — WS up after Off; sending '
+                           'KEY_POWER once to wake.'.format(self._host()),
                            'warning')
+                self._send_key('KEY_POWER')
+            elif self._wsState != 'open':
+                try:
+                    Wait(1.5, self.Connect)
+                except Exception:
+                    pass
+            self._commandedPower = 'On'
             self.WriteStatus('Power', 'On', None)
         elif value == 'Off':
-            ProgramLog('Tizen WS [{}]: Power Off requested (sending KEY_POWER).'
-                       ' WebSocket state: {}'.format(self._host(), self._wsState),
+            if self._commandedPower == 'Off':
+                ProgramLog('Tizen WS [{}]: Power Off — already Off, skip '
+                           'KEY_POWER (prevents toggle ON).'
+                           .format(self._host()), 'warning')
+                self.WriteStatus('Power', 'Off', None)
+                return
+            ProgramLog('Tizen WS [{}]: Power Off requested (KEY_POWER); '
+                       'wsState={} commanded was {}.'.format(
+                           self._host(), self._wsState, self._commandedPower),
                        'warning')
             self._send_key('KEY_POWER')
+            self._commandedPower = 'Off'
             self.WriteStatus('Power', 'Off', None)
         else:
             self.Discard('Invalid Command for SetPower')
@@ -133,17 +208,216 @@ class DeviceClass:
     def UpdatePower(self, value, qualifier):
         pass
 
+    def NotePowerOn(self, reason='external'):
+        """Public: ground the assumed power model to 'On' without sending a key.
+
+        Selecting a source/input proves the TV is on, so callers (e.g. the Roku
+        source-select in av.py) call this first. It prevents SetPower('On') from
+        firing the toggle-only KEY_POWER "wake", which would turn an already-on
+        TV OFF when the connect-time assumption was 'Off'. Same self-heal the
+        driver already applies inside SetInput.
+        """
+        self._note_tv_on(reason)
+
+    def WakeOnLan(self):
+        """Public: send a Wake-on-LAN magic packet (harmless if already on).
+
+        Lets a source-select wake a genuinely-off TV without relying on the
+        KEY_POWER toggle, which is unsafe when we cannot read real power state.
+        """
+        if self.MACAddress:
+            self._send_wol()
+        else:
+            ProgramLog('Tizen WS [{}]: WakeOnLan skipped — no MACAddress.'
+                       .format(self._host()), 'warning')
+
+    def _note_tv_on(self, reason):
+        """Resync the assumed power model to 'On'.
+
+        KEY_POWER is toggle-only with no state feedback, so the connect-time
+        assumption can be wrong (see _OnWsOpen). Any command that only makes
+        sense on a powered TV — e.g. selecting an input — is authoritative
+        proof the TV is on, so we correct the model here. This self-heals the
+        On/Off anti-phase without needing to guess the boot state.
+        """
+        if self._commandedPower != 'On':
+            ProgramLog('Tizen WS [{}]: resync power=On ({}).'.format(
+                self._host(), reason), 'warning')
+        self._commandedPower = 'On'
+        self.WriteStatus('Power', 'On', None)
+
     def SetInput(self, value, qualifier):
+        # Selecting an input only makes sense on a powered TV — treat it as
+        # ground truth and correct any wrong power assumption.
+        self._note_tv_on('input {}'.format(value))
+        if value in ('HDMI 1', 'HDMI 2', 'HDMI 3', 'HDMI 4'):
+            self._select_hdmi(value)
+            return
+        seq = getattr(self, '_INPUT_KEY_SEQUENCES', {}).get(value)
+        if seq:
+            self._inputSeqId += 1
+            sid = self._inputSeqId
+            ProgramLog('Tizen WS [{}]: SetInput {} seq#{} keys={}'.format(
+                self._host(), value, sid, seq), 'warning')
+            self._send_key_sequence(list(seq), seq_id=sid)
+            self._commandedInput = value
+            self.WriteStatus('Input', value, None)
+            return
         key = self._INPUT_KEY_MAP.get(value)
         if key:
+            ProgramLog('Tizen WS [{}]: SetInput {} via {}.'.format(
+                self._host(), value, key), 'warning')
             self._send_key(key)
+            self._commandedInput = value
             self.WriteStatus('Input', value, None)
         else:
             self.Discard('Invalid Command for SetInput: {}'.format(value))
 
+    def _select_hdmi(self, value):
+        """Select HDMI via KEY_HDMI within the Frame cycle.
+
+        On these sets KEY_HDMI walks: HDMI 1 → HDMI 2 → Antenna/Cable → …
+        Discrete buttons must compute how many presses move from the last known
+        point to the target — never "always press once" (that just advances).
+        """
+        cycle = ('HDMI 1', 'HDMI 2', 'TV')  # TV = Antenna / Cable in the loop
+        if value not in ('HDMI 1', 'HDMI 2'):
+            self.Discard('Invalid Command for SetInput: {}'.format(value))
+            return
+
+        target_idx = cycle.index(value)
+
+        cur = self._commandedInput
+        if cur in ('Antenna', 'Cable', 'Antenna/Cable', 'TV'):
+            cur = 'TV'
+        if cur in cycle:
+            cur_idx = cycle.index(cur)
+        else:
+            cur_idx = cycle.index('TV')
+            ProgramLog('Tizen WS [{}]: SetInput {} — assuming cycle pos Antenna/TV.'
+                       .format(self._host(), value), 'warning')
+
+        presses = (target_idx - cur_idx) % len(cycle)
+        if presses == 0:
+            ProgramLog('Tizen WS [{}]: SetInput {} — already there, skip KEY_HDMI.'
+                       .format(self._host(), value), 'warning')
+            self._commandedInput = value
+            self.WriteStatus('Input', value, None)
+            return
+
+        self._inputSeqId += 1
+        sid = self._inputSeqId
+        ProgramLog('Tizen WS [{}]: SetInput {} from {} — KEY_HDMI x{}.'
+                   .format(self._host(), value, cycle[cur_idx], presses),
+                   'warning')
+        keys = ['KEY_HDMI'] * presses
+        self._send_key_sequence(keys, seq_id=sid)
+        self._commandedInput = value
+        self.WriteStatus('Input', value, None)
+
+    def _send_key_sequence(self, keys, interval=None, seq_id=None):
+        """Send remote keys with delay. New seq_id cancels an in-flight sequence."""
+        if not keys:
+            return
+        if seq_id is not None and seq_id != self._inputSeqId:
+            return
+        if interval is None:
+            interval = getattr(self, '_inputKeyInterval', 0.45)
+        key = keys[0]
+        rest = keys[1:]
+        ProgramLog('Tizen WS [{}]: seq key {}'.format(self._host(), key), 'warning')
+        self._send_key(key)
+        if not rest:
+            return
+        Wait(interval,
+             lambda r=rest, i=interval, s=seq_id: self._send_key_sequence(r, i, s))
+
+    def SetAudioMute(self, value, qualifier):
+        """Discrete mute On/Off using toggle-only KEY_MUTE."""
+        if value not in ('On', 'Off'):
+            self.Discard('Invalid Command for SetAudioMute')
+            return
+        if self._commandedMute == value:
+            ProgramLog('Tizen WS [{}]: AudioMute {} — already {}, skip KEY_MUTE.'
+                       .format(self._host(), value, value), 'warning')
+            self.WriteStatus('AudioMute', value, None)
+            return
+        ProgramLog('Tizen WS [{}]: AudioMute {} (KEY_MUTE); was {}.'.format(
+            self._host(), value, self._commandedMute), 'warning')
+        self._send_key('KEY_MUTE')
+        self._commandedMute = value
+        self.WriteStatus('AudioMute', value, None)
+
     def SetVolume(self, value, qualifier):
-        # Not supported as an absolute value over the remote API.
-        self.Discard('SetVolume (absolute) is not supported via WebSocket')
+        """Set volume by flooring then ramping up (absolute).
+
+        Relative KEY_VOL tracking drifts vs the real TV level. Absolute path:
+        VOLDOWN × floor, then VOLUP × (UI/100 * scale) so TP 0 → TV 0 and
+        TP 100 → TV max.
+        """
+        try:
+            target_ui = int(value)
+        except (TypeError, ValueError):
+            self.Discard('Invalid Command for SetVolume')
+            return
+        target_ui = max(0, min(100, target_ui))
+        scale = int(getattr(self, '_volumeScale', 100))
+        target_tick = int(round(target_ui * scale / 100.0))
+        self._commandedVolume = target_ui
+        self._volumeTick = target_tick
+        self.WriteStatus('Volume', target_ui, None)
+        if self._volumeRampBusy:
+            ProgramLog('Tizen WS [{}]: Volume ramp busy — queueing retarget {}.'
+                       .format(self._host(), target_ui), 'warning')
+            self._pendingVolumeTick = target_tick
+            return
+        self._pendingVolumeTick = None
+        ProgramLog('Tizen WS [{}]: Volume absolute UI {} → floor then {} UP.'
+                   .format(self._host(), target_ui, target_tick), 'warning')
+        self._start_volume_ramp(target_tick)
+
+    def _start_volume_ramp(self, target_tick):
+        self._volumeRampBusy = True
+        floor = int(getattr(self, '_volumeFloorSteps', 100))
+        self._send_volume_steps(
+            'KEY_VOLDOWN', floor, 0,
+            on_done=lambda t=target_tick: self._after_volume_floor(t))
+
+    def _after_volume_floor(self, target_tick):
+        pending = getattr(self, '_pendingVolumeTick', None)
+        if pending is not None:
+            target_tick = pending
+            self._pendingVolumeTick = None
+        if target_tick <= 0:
+            self._volumeRampBusy = False
+            self._volumeTick = 0
+            return
+        self._send_volume_steps(
+            'KEY_VOLUP', target_tick, 0,
+            on_done=self._volume_ramp_finished)
+
+    def _volume_ramp_finished(self):
+        pending = getattr(self, '_pendingVolumeTick', None)
+        self._volumeRampBusy = False
+        if pending is not None:
+            self._pendingVolumeTick = None
+            ProgramLog('Tizen WS [{}]: Volume retarget after ramp → {}.'
+                       .format(self._host(), pending), 'warning')
+            self._start_volume_ramp(pending)
+
+    def _send_volume_steps(self, key, steps, index=0, on_done=None):
+        if steps <= 0 or index >= steps:
+            if on_done:
+                on_done()
+            return
+        self._send_key(key)
+        if index + 1 < steps:
+            interval = getattr(self, '_volumeKeyInterval', 0.05)
+            Wait(interval,
+                 lambda k=key, s=steps, i=index + 1, d=on_done:
+                 self._send_volume_steps(k, s, i, d))
+        elif on_done:
+            Wait(0.15, on_done)
 
     def SetKey(self, value, qualifier):
         """Send an arbitrary Tizen remote key, e.g. 'KEY_VOLUP', 'KEY_MUTE'."""
@@ -160,12 +434,25 @@ class DeviceClass:
             ProgramLog('Tizen WS [{}]: Connect() returning early, already in state: {}'.format(
                 self._host(), self._wsState), 'warning')
             return
+        # Modern Samsungs require TLS on 8002; plaintext WS there is dropped immediately.
+        port = int(getattr(self, 'IPPort', 8001) or 8001)
+        if port == 8002 and not getattr(self, '_useTLS', False):
+            ProgramLog('Tizen WS [{}]: refusing plaintext connect to :8002 (TLS '
+                       'required). SSLWrap failed on this firmware.'
+                       .format(self._host()), 'error')
+            self._wsState = 'closed'
+            self._scheduleReconnect()
+            return
+        # Restore configured token if a prior unauthorized cleared _token
+        if self._configuredToken and not self._token:
+            self._token = self._configuredToken
         self._wsState = 'connecting'
         self._rxBuffer = b''
         token_status = 'with token' if self._token else 'without token (fresh pairing)'
-        ProgramLog('Tizen WS [{}]: attempting TCP connection to {}:{} ({})...'.format(
-            self._host(), getattr(self, 'IPAddress', '?'), getattr(self, 'IPPort', 8001),
-            token_status),
+        tls_status = 'wss' if getattr(self, '_useTLS', False) else 'ws'
+        ProgramLog('Tizen WS [{}]: attempting TCP connection to {}:{} ({}, {})...'.format(
+            self._host(), getattr(self, 'IPAddress', '?'), port,
+            token_status, tls_status),
             'warning')
 
         # Capture the underlying interface events.
@@ -207,10 +494,25 @@ class DeviceClass:
     def _OnEthernetDisconnected(self, interface, state):
         ProgramLog('Tizen WS [{}]: TCP disconnected.'.format(self._host()), 'warning')
         self._wsState = 'closed'
-        self._KeepAliveTimer.Stop()
+        self._safe_stop_timer(self._KeepAliveTimer)
         self.WriteStatus('ConnectionStatus', 'Disconnected', None)
         if self._autoReconnect:
             self._scheduleReconnect()
+
+    @staticmethod
+    def _safe_stop_timer(timer):
+        """Stop a Timer only if it is running.
+
+        Extron's Timer.Stop() logs a noisy ERROR ('Failed to run Stop method,
+        already stopped.') when the timer is already stopped. Guarding on State
+        (and swallowing any error) keeps the program log clean during the normal
+        connect/disconnect churn.
+        """
+        try:
+            if timer is not None and timer.State == 'Running':
+                timer.Stop()
+        except Exception:
+            pass
 
     def _scheduleReconnect(self):
         self._wsState = 'closed'
@@ -221,17 +523,39 @@ class DeviceClass:
         if self._wsState == 'closed' and self._autoReconnect:
             self.Connect()
         else:
-            timer.Stop()
+            self._safe_stop_timer(timer)
 
     def _KeepAliveTick(self, timer, count):
-        if self._wsState == 'open':
-            self._ws_send(b'', opcode=0x9)   # WebSocket ping
-        else:
-            timer.Stop()
+        if self._wsState != 'open':
+            self._safe_stop_timer(timer)
+            return
+        # Send a real application-level message rather than a WebSocket ping
+        # frame. "The Frame" firmware does not reset its idle timeout on ping
+        # frames, so it would drop the session after ~40s. Requesting the
+        # installed-app list is benign (no visible effect) but generates TV
+        # activity/response, resetting the idle timer and keeping the socket up.
+        try:
+            payload = json.dumps({
+                'method': 'ms.channel.emit',
+                'params': {
+                    'event': 'ed.installedApp.get',
+                    'to': 'host',
+                },
+            }).encode('utf-8')
+            self._ws_send(payload, opcode=0x1)
+        except Exception as e:
+            ProgramLog('Tizen WS [{}]: keep-alive send failed: {}'.format(
+                self._host(), e), 'warning')
+            # Fall back to a ping frame if the app-level message could not be
+            # sent, so we still attempt to hold the connection.
+            try:
+                self._ws_send(b'', opcode=0x9)
+            except Exception:
+                pass
 
     def _stopTimers(self):
-        self._ReconnectTimer.Stop()
-        self._KeepAliveTimer.Stop()
+        self._safe_stop_timer(self._ReconnectTimer)
+        self._safe_stop_timer(self._KeepAliveTimer)
 
     # ------------------------------------------------------------------ #
     # WebSocket handshake + framing
@@ -297,6 +621,18 @@ class DeviceClass:
         ProgramLog('Tizen WS [{}]: WebSocket open, remote control ready.'.format(
             self._host()), 'warning')
         self.WriteStatus('ConnectionStatus', 'Connected', None)
+        # WS is accepting us. We cannot read real power state, so seed an
+        # assumption for the very first command. Displays that stay connected
+        # in standby/Art Mode (AssumeStandbyOnConnect=True) are seeded 'Off';
+        # all others default to 'On' (socket up usually means the panel is on).
+        if self._commandedPower is None:
+            assumed = 'Off' if self._assumeStandbyOnConnect else 'On'
+            self._commandedPower = assumed
+            self.WriteStatus('Power', assumed, None)
+            ProgramLog('Tizen WS [{}]: assuming power={} on connect.'.format(
+                self._host(), assumed), 'warning')
+        # Reset HDMI cycle tracking — cold assume Antenna/Cable.
+        self._commandedInput = 'TV'
         if self._KeepAliveTimer.State != 'Running':
             self._KeepAliveTimer.Restart()
         # Flush any keys queued while the socket was down.
@@ -341,6 +677,16 @@ class DeviceClass:
 
     def _handle_frame(self, opcode, payload):
         if opcode == 0x8:                 # close
+            code, reason = None, ''
+            try:
+                if len(payload) >= 2:
+                    code = struct.unpack('>H', payload[:2])[0]
+                    reason = payload[2:].decode('utf-8', 'replace')
+            except Exception:
+                pass
+            ProgramLog('Tizen WS [{}]: received CLOSE frame from TV '
+                       '(code={}, reason={!r}) — TV initiated the disconnect.'
+                       .format(self._host(), code, reason), 'warning')
             try:
                 EthernetClientInterface.Disconnect(self)
             except Exception:
@@ -369,22 +715,32 @@ class DeviceClass:
         elif event == 'ms.channel.unauthorized':
             ProgramLog('Tizen WS [{}]: unauthorized - approve the prompt on the '
                        'TV (Allow this device).'.format(self._host()), 'warning')
-            # Log the full message to see what TV is telling us
             ProgramLog('Tizen WS [{}]: full unauthorized msg: {}'.format(
                 self._host(), json.dumps(msg)), 'warning')
-            # Clear any stale token to force fresh pairing on next connect
-            if self._token:
-                ProgramLog('Tizen WS [{}]: clearing stale token, will retry without '
-                           'token to trigger prompt.'.format(self._host()), 'warning')
+            # Do NOT clear Token= from devices.py. WSS-paired tokens are often
+            # rejected on plaintext 8001; clearing causes a reconnect storm.
+            if self._configuredToken:
+                self._token = self._configuredToken
+                ProgramLog('Tizen WS [{}]: keeping configured Token= {}; if this is '
+                           'port 8001, switch to 8002+SSL — ws often rejects wss tokens.'
+                           .format(self._host(), self._configuredToken), 'warning')
+                # Slow reconnect storm while operator switches / tests TLS
+                self._reconnectInterval = 30
+                try:
+                    self._safe_stop_timer(self._ReconnectTimer)
+                    self._ReconnectTimer = Timer(self._reconnectInterval, self._ReconnectTick)
+                    self._safe_stop_timer(self._ReconnectTimer)
+                except Exception:
+                    pass
+            elif self._token:
+                ProgramLog('Tizen WS [{}]: clearing file token, will retry without '
+                           'token.'.format(self._host()), 'warning')
                 self._token = None
                 try:
-                    # Delete the token file
                     import os
                     token_file = self._token_filename()
                     if os.path.exists(token_file):
                         os.remove(token_file)
-                        ProgramLog('Tizen WS [{}]: deleted token file.'.format(
-                            self._host()), 'warning')
                 except Exception as e:
                     ProgramLog('Tizen WS [{}]: failed to delete token file: {}'.format(
                         self._host(), e), 'warning')
@@ -488,18 +844,29 @@ class DeviceClass:
         return 'tizen_token_{}.txt'.format(str(self.IPAddress).replace('.', '_'))
 
     def _load_token(self):
+        if self._token:
+            return  # already set via Token= constructor arg
         if File is None:
+            ProgramLog('Tizen WS [{}]: File API unavailable; no token file load.'
+                       .format(self._host()), 'warning')
             return
         try:
-            f = File(self._token_filename(), 'r')
+            fname = self._token_filename()
+            f = File(fname, 'r')
             data = f.read()
             f.close()
             data = data.decode() if isinstance(data, (bytes, bytearray)) else data
             data = (data or '').strip()
             if data:
                 self._token = data
-        except Exception:
-            pass
+                ProgramLog('Tizen WS [{}]: loaded token from {}'.format(
+                    self._host(), fname), 'warning')
+            else:
+                ProgramLog('Tizen WS [{}]: token file {} empty'.format(
+                    self._host(), fname), 'warning')
+        except Exception as e:
+            ProgramLog('Tizen WS [{}]: no token file ({}): {}'.format(
+                self._host(), self._token_filename(), e), 'warning')
 
     def _save_token(self):
         if File is None or not self._token:
@@ -566,10 +933,19 @@ class EthernetClass(EthernetClientInterface, DeviceClass):
     :param MACAddress: TV MAC (e.g. 'AA:BB:CC:DD:EE:FF') to enable Wake-on-LAN
                        power-on. Without it, Power On cannot wake a TV that is off.
     :param Name: friendly controller name presented to the TV during pairing.
+    :param Token: optional pre-paired Samsung token (from laptop wss pairing).
+                  Preferred over File() on the processor — Extron File storage is
+                  easy to miss when pairing off-box.
+    :param AssumeStandbyOnConnect: set True for displays that keep the WebSocket
+                  open while in standby/Art Mode (e.g. The Terrace LST). KEY_POWER
+                  is toggle-only with no state feedback, so on connect we must
+                  assume a starting power state; True seeds 'Off' (standby) so
+                  On/Off don't get locked in anti-phase. Default False seeds 'On'.
     """
 
     def __init__(self, Hostname, IPPort=8001, Protocol='TCP', Model=None,
-                 MACAddress=None, Name='ExtronControl'):
+                 MACAddress=None, Name='ExtronControl', Token=None,
+                 AssumeStandbyOnConnect=False):
         secure = str(Protocol).upper() in ('SSL', 'TLS', 'WSS')
         # extronlib only accepts 'TCP'/'UDP'/'SSH' here; TLS is applied via
         # SSLWrap() below (never by passing 'SSL' to the base interface).
@@ -577,10 +953,26 @@ class EthernetClass(EthernetClientInterface, DeviceClass):
         DeviceClass.__init__(self)
         self.MACAddress = MACAddress
         self._clientName = Name or 'ExtronControl'
+        self._assumeStandbyOnConnect = bool(AssumeStandbyOnConnect)
         self._useTLS = False
         if secure:
             self._enable_tls()
-        self._load_token()
+        self._token = None
+        self._configuredToken = None  # Token= from devices.py — never auto-clear
+        if Token:
+            self._token = str(Token).strip() or None
+            self._configuredToken = self._token
+            if self._token:
+                ProgramLog('Tizen WS [{}]: using Token= from devices.py'.format(
+                    getattr(self, 'IPAddress', '?')), 'warning')
+        self._load_token()  # file token fills in if Token not provided
+        if self._token and not self._configuredToken:
+            self._configuredToken = self._token
+        if secure and not self._useTLS:
+            ProgramLog('Tizen WS [{}]: Protocol requested SSL but TLS wrap failed — '
+                       'will not open plaintext to port {}. Fix SSLWrap or use 8001 '
+                       'only if the TV accepts ws tokens.'
+                       .format(getattr(self, 'IPAddress', '?'), IPPort), 'error')
         if Model and len(self.Models) > 0:
             if Model not in self.Models:
                 print('Model mismatch')
@@ -590,28 +982,45 @@ class EthernetClass(EthernetClientInterface, DeviceClass):
         self.Connect = self._connect_wrapper
 
     def _enable_tls(self):
-        """Best-effort TLS upgrade for wss, tolerant of firmware differences."""
+        """Best-effort TLS upgrade for wss, tolerant of firmware differences.
+
+        On IPCP firmware that cannot SSLWrap, do NOT pretend TLS succeeded —
+        leave _useTLS False so callers know wss is unavailable (plaintext on
+        port 8002 will be dropped by modern Samsung TVs).
+        """
         wrap = getattr(self, 'SSLWrap', None)
         if not callable(wrap):
             ProgramLog('Tizen WS [{}]: SSLWrap not available on this firmware; '
-                       'using plaintext ws. Configure port 8001 / Protocol="TCP".'
+                       'wss unavailable — pair from a laptop and use port 8001 + token.'
                        .format(getattr(self, 'IPAddress', '?')), 'warning')
             return
-        for kwargs in ({'cert_reqs': 'none'}, {}):
+        attempts = (
+            lambda: wrap(),
+            lambda: wrap(False),
+            lambda: wrap(verify=False),
+            lambda: wrap(cert_reqs=0),
+            lambda: wrap(cert_reqs='CERT_NONE'),
+            lambda: wrap(cert_reqs='none'),
+        )
+        last_err = None
+        for attempt in attempts:
             try:
-                wrap(**kwargs)
+                attempt()
                 self._useTLS = True
                 ProgramLog('Tizen WS [{}]: TLS enabled (wss).'.format(
                     getattr(self, 'IPAddress', '?')), 'warning')
                 return
-            except TypeError:
+            except TypeError as e:
+                last_err = e
                 continue
             except Exception as e:
-                ProgramLog('Tizen WS [{}]: SSLWrap failed ({}); using plaintext.'
+                last_err = e
+                ProgramLog('Tizen WS [{}]: SSLWrap failed ({}); trying next signature.'
                            .format(getattr(self, 'IPAddress', '?'), e), 'warning')
-                return
-        ProgramLog('Tizen WS [{}]: SSLWrap signature unsupported; using plaintext.'
-                   .format(getattr(self, 'IPAddress', '?')), 'warning')
+                continue
+        ProgramLog('Tizen WS [{}]: SSLWrap unavailable ({}); wss disabled — '
+                   'use port 8001 after laptop pairing (see pair_samsung_tizen.py).'
+                   .format(getattr(self, 'IPAddress', '?'), last_err), 'warning')
 
     def Error(self, message):
         portInfo = 'IP Address/Host: {0}:{1}'.format(self.IPAddress, self.IPPort)

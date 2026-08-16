@@ -1,27 +1,19 @@
 """
-Party Room Touch Panel UI Module
-* UI object definition
-* Event handlers for Party Room control
+Party Room Touch Panel — Music / BT / HDMI / Roku sources + Roku keys.
+ShowPopup for sources (Screening Room style). Shutdown mutes Party zone only.
 """
 
-# Extron Library imports
 from extronlib import event
 from extronlib.ui import Button, Slider
 from extronlib.system import MESet
 
-# Project imports
 import devices
 import variables
 import control.av as av
 
-# Touch Panel Device Reference
 dvPartyRoomTLP = devices.dvPartyRoomTLP
 
-# ========================================================================================
-# UI Object Definitions
-# ========================================================================================
-
-# System Control Buttons
+# System Control
 BtnStart = Button(dvPartyRoomTLP, 7001)
 BtnSystemPower = Button(dvPartyRoomTLP, 8022)
 BtnPowerOffYes = Button(dvPartyRoomTLP, 9028)
@@ -29,192 +21,250 @@ BtnPowerOffCancel = Button(dvPartyRoomTLP, 9029)
 BtnHelp = Button(dvPartyRoomTLP, 8117)
 BtnHelpPageClose = Button(dvPartyRoomTLP, 9057)
 
-# Room Control Buttons
-# PartyRoomCancelBtn = Button(dvPartyRoomTLP, 42)
+# Sources
 PartyRoomMusicPlayerBtn = Button(dvPartyRoomTLP, 254)
 PartyRoomBTPlateBtn = Button(dvPartyRoomTLP, 255)
+PartyRoomRokuBtn = Button(dvPartyRoomTLP, 252)
+PartyRoomHDMIBtn = Button(dvPartyRoomTLP, 4)
+# Program Volume on Main / Splash drives the DSP Party Room zone (output 4).
 PartyRoomMuteBtn = Button(dvPartyRoomTLP, 247)
 PartyRoomVolumeLvl = Slider(dvPartyRoomTLP, 248)
 
-# TV Power Buttons
+# TV Volume on the Roku / HDMI popups drives the Samsung display's own audio.
+PartyRoomTVMuteBtn = Button(dvPartyRoomTLP, 601)
+PartyRoomTVVolumeLvl = Slider(dvPartyRoomTLP, 600)
+
 PartyRoomTVPowerOnBtn = Button(dvPartyRoomTLP, 245)
 PartyRoomTVPowerOffBtn = Button(dvPartyRoomTLP, 246)
 
-# TV Audio Routing Buttons
-PartyRoomTVAudioSendToAllBtn = Button(dvPartyRoomTLP, 253)
-PartyRoomTVAudioSendToGymBtn = Button(dvPartyRoomTLP, 250)
-PartyRoomTVAudioSendToYogaBtn = Button(dvPartyRoomTLP, 249)
-PartyRoomTVAudioSendToTerraceBtn = Button(dvPartyRoomTLP, 251)
-PartyRoomTVAudioSendToPartyRmBtn = Button(dvPartyRoomTLP, 252)
-PartyRoomTVAudioSendToCourtyardBtn = Button(dvPartyRoomTLP, 256)
-
-# Mutually Exclusive Button Sets
-PartyRmAudioSource = MESet([PartyRoomMusicPlayerBtn, PartyRoomBTPlateBtn])
+PartyRmAudioSource = MESet([
+    PartyRoomMusicPlayerBtn, PartyRoomBTPlateBtn, PartyRoomRokuBtn, PartyRoomHDMIBtn
+])
 PartyRmTVPower = MESet([PartyRoomTVPowerOffBtn, PartyRoomTVPowerOnBtn])
-PartyRmSendToMES = MESet([PartyRoomTVAudioSendToAllBtn, PartyRoomTVAudioSendToGymBtn, 
-                          PartyRoomTVAudioSendToPartyRmBtn, PartyRoomTVAudioSendToTerraceBtn, 
-                          PartyRoomTVAudioSendToYogaBtn, PartyRoomTVAudioSendToCourtyardBtn])
 
-# Register volume slider for DSP feedback (at module load time)
+# Roku remote
+BtnRokuHome = Button(dvPartyRoomTLP, 300)
+BtnRokuBack = Button(dvPartyRoomTLP, 301)
+BtnRokuUp = Button(dvPartyRoomTLP, 302)
+BtnRokuDown = Button(dvPartyRoomTLP, 303)
+BtnRokuLeft = Button(dvPartyRoomTLP, 304)
+BtnRokuRight = Button(dvPartyRoomTLP, 305)
+BtnRokuSelect = Button(dvPartyRoomTLP, 306)
+BtnRokuPlay = Button(dvPartyRoomTLP, 307)
+BtnRokuRev = Button(dvPartyRoomTLP, 308)
+BtnRokuFwd = Button(dvPartyRoomTLP, 309)
+# Former Netflix button (join 312) — layout relabeled to Hulu.
+BtnRokuHulu = Button(dvPartyRoomTLP, 312)
+BtnRokuYoutube = Button(dvPartyRoomTLP, 313)
+
 av.RegisterVolumeSlider('PartyRoom', PartyRoomVolumeLvl)
+av.RegisterMuteButton('PartyRoom', PartyRoomMuteBtn)
+av.RegisterTVLocalVolumeSlider('PartyRoomTV', PartyRoomTVVolumeLvl)
+av.RegisterTVLocalMuteButton('PartyRoomTV', PartyRoomTVMuteBtn)
 
-# ========================================================================================
-# Event Handlers
-# ========================================================================================
 
-# System Control Events -----------------------------------------------------------------
+def _select_music():
+    PartyRmAudioSource.SetCurrent(PartyRoomMusicPlayerBtn)
+    av.PartyRoomSelectMusicPlayer()
+    dvPartyRoomTLP.ShowPopup(variables.POPUPS['Music Player'])
+
+
+def _select_bluetooth():
+    PartyRmAudioSource.SetCurrent(PartyRoomBTPlateBtn)
+    av.PartyRoomSelectBTPlate()
+    dvPartyRoomTLP.ShowPopup(variables.POPUPS['Bluetooth'])
+
+
+def _select_hdmi():
+    PartyRmAudioSource.SetCurrent(PartyRoomHDMIBtn)
+    PartyRmTVPower.SetCurrent(PartyRoomTVPowerOnBtn)
+    av.PartyRoomSelectHDMI()
+    dvPartyRoomTLP.ShowPopup(variables.POPUPS['HDMI'])
+    av.RefreshTVLocalVolumeUI('PartyRoomTV')
+
+
+def _select_roku():
+    PartyRmAudioSource.SetCurrent(PartyRoomRokuBtn)
+    PartyRmTVPower.SetCurrent(PartyRoomTVPowerOnBtn)
+    av.PartyRoomSelectRoku()
+    dvPartyRoomTLP.ShowPopup(variables.POPUPS['Roku'])
+    av.RefreshTVLocalVolumeUI('PartyRoomTV')
+
+
+@event(dvPartyRoomTLP, 'Online')
+def TLPOnline(device, state):
+    if av.PartyRoomGetSystemPowerState():
+        dvPartyRoomTLP.ShowPage(variables.PAGES['Main'])
+        av.RefreshLocalVolumeUI(['PartyRoom'])
+        av.RefreshTVLocalVolumeUI('PartyRoomTV')
+    else:
+        dvPartyRoomTLP.ShowPage(variables.PAGES['Splash'])
+
 
 @event(BtnStart, 'Pressed')
 def BtnStartPressed(button, state):
-    """Start system - navigate to main page and power on"""
-    print('Party Room: Start button pressed')
     dvPartyRoomTLP.ShowPage(variables.PAGES['Main'])
     dvPartyRoomTLP.ShowPopup(variables.POPUPS['Starting Up'])
-    
+
     def OnStartupComplete():
         dvPartyRoomTLP.HidePopup(variables.POPUPS['Starting Up'])
-        print('Party Room: System startup complete')
-    
+        _select_music()
+        av.RefreshLocalVolumeUI(['PartyRoom'])
+        av.RefreshTVLocalVolumeUI('PartyRoomTV')
+
     av.PartyRoomSystemPowerOn(callback=OnStartupComplete)
+
 
 @event(BtnSystemPower, 'Pressed')
 def BtnSystemPowerPressed(button, state):
-    """Show power off confirmation popup"""
-    print('Party Room: System Power button pressed')
     dvPartyRoomTLP.ShowPopup(variables.POPUPS['Confirmation'])
+
 
 @event(BtnPowerOffYes, 'Pressed')
 def BtnPowerOffYesPressed(button, state):
-    """Confirm system shutdown"""
-    print('Party Room: Power Off confirmed')
     dvPartyRoomTLP.HidePopup(variables.POPUPS['Confirmation'])
     dvPartyRoomTLP.ShowPopup(variables.POPUPS['Powering Down'])
-    
+
     def OnShutdownComplete():
         dvPartyRoomTLP.HidePopup(variables.POPUPS['Powering Down'])
         dvPartyRoomTLP.ShowPage(variables.PAGES['Splash'])
-        print('Party Room: System shutdown complete')
-    
+
     av.PartyRoomSystemPowerOff(callback=OnShutdownComplete)
+
 
 @event(BtnPowerOffCancel, 'Pressed')
 def BtnPowerOffCancelPressed(button, state):
-    """Cancel shutdown"""
-    print('Party Room: Power Off cancelled')
     dvPartyRoomTLP.HidePopup(variables.POPUPS['Confirmation'])
+
 
 @event(BtnHelp, 'Pressed')
 def BtnHelpPressed(button, state):
-    """Show help popup"""
-    print('Party Room: Help button pressed')
     dvPartyRoomTLP.ShowPopup(variables.POPUPS['Help'])
+
 
 @event(BtnHelpPageClose, 'Pressed')
 def BtnHelpPageClosePressed(button, state):
-    """Close help popup"""
-    print('Party Room: Help page closed')
     dvPartyRoomTLP.HidePopup(variables.POPUPS['Help'])
 
-#@event(PartyRoomCancelBtn, 'Pressed')
-#def PartyRoomCancelBtnPressed(button, state):
-#    """Handle cancel/back navigation"""
-#    print('Party Room: Cancel button pressed')
-
-# Audio Source Selection Events ---------------------------------------------------------
 
 @event(PartyRoomMusicPlayerBtn, 'Pressed')
 def PartyRoomMusicPlayerBtnPressed(button, state):
-    """Select Music Player as audio source"""
-    print('Party Room: Music Player selected')
-    PartyRmAudioSource.SetCurrent(PartyRoomMusicPlayerBtn)
-    PartyRmSendToMES.SetCurrent(None)
-    av.PartyRoomSelectMusicPlayer()
+    _select_music()
+
 
 @event(PartyRoomBTPlateBtn, 'Pressed')
 def PartyRoomBTPlateBtnPressed(button, state):
-    """Select Bluetooth Plate as audio source"""
-    print('Party Room: Bluetooth Plate selected')
-    PartyRmAudioSource.SetCurrent(PartyRoomBTPlateBtn)
-    PartyRmSendToMES.SetCurrent(None)
-    av.PartyRoomSelectBTPlate()
+    _select_bluetooth()
 
-# Volume Control Events -----------------------------------------------------------------
+
+@event(PartyRoomHDMIBtn, 'Pressed')
+def PartyRoomHDMIBtnPressed(button, state):
+    _select_hdmi()
+
+
+@event(PartyRoomRokuBtn, 'Pressed')
+def PartyRoomRokuBtnPressed(button, state):
+    _select_roku()
+
 
 @event(PartyRoomMuteBtn, 'Pressed')
 def PartyRoomMuteBtnPressed(button, state):
-    """Toggle mute state"""
-    print('Party Room: Mute button pressed')
     newState = av.PartyRoomToggleMute()
     PartyRoomMuteBtn.SetState(1 if newState else 0)
 
+
 @event(PartyRoomVolumeLvl, 'Changed')
 def PartyRoomVolumeLvlChanged(slider, state, value):
-    """Handle volume slider change"""
-    print(f'Party Room: Volume changed to {value}')
-    av.PartyRoomSetVolume(value)
+    av.PartyRoomSetVolume(int(value))
 
-# TV Power Control Events ---------------------------------------------------------------
+
+@event(PartyRoomTVMuteBtn, 'Pressed')
+def PartyRoomTVMuteBtnPressed(button, state):
+    newState = av.ToggleTVLocalMute('PartyRoomTV')
+    PartyRoomTVMuteBtn.SetState(1 if newState else 0)
+
+
+@event(PartyRoomTVVolumeLvl, 'Changed')
+def PartyRoomTVVolumeLvlChanged(slider, state, value):
+    av.PreviewTVLocalVolume('PartyRoomTV', value)
+
+
+@event(PartyRoomTVVolumeLvl, 'Released')
+def PartyRoomTVVolumeLvlReleased(slider, state, value):
+    av.SetTVLocalVolume('PartyRoomTV', value)
+
 
 @event(PartyRoomTVPowerOnBtn, 'Pressed')
 def PartyRoomTVPowerOnBtnPressed(button, state):
-    """Turn TV on"""
-    print('Party Room: TV Power On pressed')
     PartyRmTVPower.SetCurrent(PartyRoomTVPowerOnBtn)
     av.PartyRoomTVPowerOn()
 
+
 @event(PartyRoomTVPowerOffBtn, 'Pressed')
 def PartyRoomTVPowerOffBtnPressed(button, state):
-    """Turn TV off"""
-    print('Party Room: TV Power Off pressed')
     PartyRmTVPower.SetCurrent(PartyRoomTVPowerOffBtn)
     av.PartyRoomTVPowerOff()
 
-# TV Audio Routing Events ---------------------------------------------------------------
 
-@event(PartyRoomTVAudioSendToAllBtn, 'Pressed')
-def PartyRoomTVAudioSendToAllBtnPressed(button, state):
-    """Route TV audio to all zones"""
-    print('Party Room: Send TV Audio to All Zones')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToAllBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToAll()
+def _roku(action):
+    av.PartyRoomRokuKey(action)
 
-@event(PartyRoomTVAudioSendToGymBtn, 'Pressed')
-def PartyRoomTVAudioSendToGymBtnPressed(button, state):
-    """Route TV audio to Gym"""
-    print('Party Room: Send TV Audio to Gym')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToGymBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToGym()
 
-@event(PartyRoomTVAudioSendToYogaBtn, 'Pressed')
-def PartyRoomTVAudioSendToYogaBtnPressed(button, state):
-    """Route TV audio to Yoga Studio"""
-    print('Party Room: Send TV Audio to Yoga Studio')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToYogaBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToYogaStudio()
+@event(BtnRokuHome, 'Pressed')
+def _(button, state):
+    _roku('Home')
 
-@event(PartyRoomTVAudioSendToTerraceBtn, 'Pressed')
-def PartyRoomTVAudioSendToTerraceBtnPressed(button, state):
-    """Route TV audio to Terrace Gallery"""
-    print('Party Room: Send TV Audio to Terrace')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToTerraceBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToTerrace()
 
-@event(PartyRoomTVAudioSendToPartyRmBtn, 'Pressed')
-def PartyRoomTVAudioSendToPartyRmBtnPressed(button, state):
-    """Route TV audio to Party Room only"""
-    print('Party Room: Send TV Audio to Party Room')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToPartyRmBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToPartyRoom()
+@event(BtnRokuBack, 'Pressed')
+def _(button, state):
+    _roku('Back')
 
-@event(PartyRoomTVAudioSendToCourtyardBtn, 'Pressed')
-def PartyRoomTVAudioSendToCourtyardBtnPressed(button, state):
-    """Route TV audio to Courtyard"""
-    print('Party Room: Send TV Audio to Courtyard')
-    PartyRmSendToMES.SetCurrent(PartyRoomTVAudioSendToCourtyardBtn)
-    PartyRmAudioSource.SetCurrent(None)
-    av.PartyRoomTVRouteToCourtyard()
+
+@event(BtnRokuUp, 'Pressed')
+def _(button, state):
+    _roku('Up')
+
+
+@event(BtnRokuDown, 'Pressed')
+def _(button, state):
+    _roku('Down')
+
+
+@event(BtnRokuLeft, 'Pressed')
+def _(button, state):
+    _roku('Left')
+
+
+@event(BtnRokuRight, 'Pressed')
+def _(button, state):
+    _roku('Right')
+
+
+@event(BtnRokuSelect, 'Pressed')
+def _(button, state):
+    _roku('Select')
+
+
+@event(BtnRokuPlay, 'Pressed')
+def _(button, state):
+    _roku('Play')
+
+
+@event(BtnRokuRev, 'Pressed')
+def _(button, state):
+    _roku('Rev')
+
+
+@event(BtnRokuFwd, 'Pressed')
+def _(button, state):
+    _roku('Fwd')
+
+
+@event(BtnRokuHulu, 'Pressed')
+def _(button, state):
+    _roku('LaunchHulu')
+
+
+@event(BtnRokuYoutube, 'Pressed')
+def _(button, state):
+    _roku('LaunchYouTube')

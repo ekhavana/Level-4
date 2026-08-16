@@ -18,6 +18,16 @@ POPUPS = {
     'Confirmation': 'Confirmation',
     'Starting Up': 'Starting Up',
     'Help': 'Help',
+    # Source control overlays (ShowPopup in code — same as Screening Room / Roof)
+    'Music Player': 'Music Player',
+    'Bluetooth': 'Bluetooth',
+    'Roku': 'Roku',
+    'Roku TV 1': 'Roku TV 1',
+    'Roku TV 2': 'Roku TV 2',
+    'HDMI': 'HDMI',
+    # Yoga Studio popup is named 'Display' in the layout; the Level 1 source
+    # feedback label for the same selection stays 'Display A/V'.
+    'Display': 'Display',
 }
 
 # ========================================================================================
@@ -38,11 +48,24 @@ DSP_OUTPUTS = {
     'Courtyard': '5',
 }
 
-# DSP Analog Input Assignments
-# Analog Input 1: Music Player (BGM)
+# DSP Analog Input Assignments (one dedicated Music Player per area)
 DSP_ANALOG_INPUTS = {
-    'MusicPlayer': '1',
+    'GymMusicPlayer': '1',
+    'YogaMusicPlayer': '2',
+    'TerracePartyMusicPlayer': '3',
 }
+
+# Routes that are always present while the DSP is connected. These are
+# reasserted on every DSP reconnect without touching Yoga/Party source state.
+DSP_CONTINUOUS_ROUTES = (
+    {'InputType': 'Analog', 'Input': '1', 'Output': '1'},  # Gym
+    {'InputType': 'Analog', 'Input': '3', 'Output': '3'},  # Terrace Gallery
+    {'InputType': 'Analog', 'Input': '3', 'Output': '5'},  # Courtyard
+)
+
+# TV returns are intentionally unavailable to ceiling speakers. Their virtual
+# returns remain globally muted, and routing helpers must never unmute them.
+DSP_PROTECTED_VIRTUAL_RETURNS = ('C', 'F')
 
 # DSP Dante Input Assignments
 # Dante 1-4: Yoga Studio BT/Aux Wall Plate → Virtual Send A (1-4)
@@ -82,7 +105,9 @@ DSP_VIRTUAL_RECEIVES = {
 
 # Combined input references for routing (type indicates Analog, Dante, or VirtualReceive)
 DSP_INPUTS = {
-    'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+    'GymMusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+    'YogaMusicPlayer': {'Type': 'Analog', 'Channel': '2'},
+    'TerracePartyMusicPlayer': {'Type': 'Analog', 'Channel': '3'},
     'BTPlate_YogaStudio': {'Type': 'VirtualReceive', 'Channel': 'A'},  # Virtual Receive A
     'BTPlate_PartyRoom': {'Type': 'VirtualReceive', 'Channel': 'B'},   # Virtual Receive B
     'YogaStudioTV': {'Type': 'VirtualReceive', 'Channel': 'C'},        # Virtual Receive C (from Dante 9)
@@ -100,11 +125,11 @@ ROOM_TV_SOURCE = {
 # Audio Source Mapping for each room (for source selection buttons)
 AUDIO_SOURCES = {
     'PartyRoom': {
-        'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+        'MusicPlayer': {'Type': 'Analog', 'Channel': '3'},
         'BTPlate': {'Type': 'VirtualReceive', 'Channel': 'B'},  # Virtual Receive B
     },
     'YogaStudio': {
-        'MusicPlayer': {'Type': 'Analog', 'Channel': '1'},
+        'MusicPlayer': {'Type': 'Analog', 'Channel': '2'},
         'BTPlate': {'Type': 'VirtualReceive', 'Channel': 'A'},  # Virtual Receive A
     },
 }

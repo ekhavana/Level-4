@@ -15,6 +15,11 @@ Commands (case-insensitive):
                            dest: ALL,GYM,YOGA,TERRACE,PARTY,COURTYARD
   GET,STATE                returns snapshot of key states
 
+JSON (newline-terminated, same TCP port — preferred path from Level 1):
+  {"command":"ControlRoku","data":{"zone":"<zone>","command":"<key>"}}
+  zones: Party Room, Terrace Gallery TV 1, Terrace Gallery TV 2
+  keys:  Rev, Fwd, Play, Up, Down, Left, Right, Select, Home, Back, Hulu, YouTube
+
 Feedback (pushed asynchronously, comma-delimited):
   EVT,POWER,ROOM,ON/OFF
   EVT,MUTE,ROOM,ON/OFF
@@ -37,12 +42,17 @@ _clients = set()
 _ZONE_MAP = {
     'party room': 'PartyRoom',
     'party': 'PartyRoom',
+    'level 4 party room': 'PartyRoom',
     'yoga studio': 'YogaStudio',
     'yoga': 'YogaStudio',
+    'level 4 yoga': 'YogaStudio',
     'terrace gallery': 'TerraceGallery',
     'terrace': 'TerraceGallery',
+    'level 4 terrace': 'TerraceGallery',
     'terrace gallery 1': 'TerraceGallery',
     'terrace gallery 2': 'TerraceGallery',
+    'terrace gallery tv 1': 'TerraceGalleryTV1',
+    'terrace gallery tv 2': 'TerraceGalleryTV2',
     'terrace tv': 'TerraceGallery',
     'level 4 gym': 'Gym',
     'gym': 'Gym',
@@ -54,6 +64,36 @@ _POWER_CODE_MAP = {
     'PartyRoom': 'PARTY',
     'YogaStudio': 'YOGA',
     'TerraceGallery': 'TERRACE',
+}
+
+_TV_ZONE_MAP = {
+    'party room tv': 'PARTY',
+    'yoga studio tv': 'YOGA',
+    'terrace gallery tv 1': 'TERRACE1',
+    'terrace gallery tv 2': 'TERRACE2',
+}
+
+_ZONE_DISPLAY_MAP = {
+    'PartyRoom': 'Party Room',
+    'PartyRoomTV': 'Party Room TV',
+    'YogaStudio': 'Yoga Studio',
+    'YogaStudioTV': 'Yoga Studio TV',
+    'TerraceGallery': 'Terrace Gallery',
+    'TerraceGalleryTV1': 'Terrace Gallery TV 1',
+    'TerraceGalleryTV2': 'Terrace Gallery TV 2',
+    'Gym': 'Level 4 Gym',
+    'Courtyard': 'Level 4 Courtyard',
+}
+
+_SOURCE_DISPLAY = {
+    'MusicPlayer': 'Music Player',
+    'BTPlate': 'BT Plate',
+    'Music': 'Music Player',
+    'BT': 'BT Plate',
+    'HDMI': 'HDMI',
+    'Roku': 'Roku',
+    'DisplayAV': 'Display A/V',
+    'Display A/V': 'Display A/V',
 }
 
 
@@ -70,10 +110,37 @@ def _send(line):
                 pass
 
 
+def _send_json_feedback(command, data):
+    """Send JSON feedback to Level 1 via the dedicated feedback client."""
+    try:
+        zone = data.get('zone', '')
+        display_zone = _ZONE_DISPLAY_MAP.get(zone, zone)
+        kwargs = {k: v for k, v in data.items() if k != 'zone'}
+        av._SendFeedbackToLevel1(command, display_zone, **kwargs)
+    except Exception as e:
+        print(f'Remote: JSON feedback error: {e}')
+
+
 def _norm_zone(zone):
     if not zone:
         return None
     return _ZONE_MAP.get(str(zone).strip().lower())
+
+
+def _norm_audio_zone(zone):
+    """Resolve DSP zone labels plus display-local TV audio labels."""
+    if not zone:
+        return None
+    tv_zones = {
+        'party room tv': 'PartyRoomTV',
+        'yoga studio tv': 'YogaStudioTV',
+        'terrace gallery tv 1': 'TerraceTV1',
+        'terrace gallery tv 2': 'TerraceTV2',
+        'terrace tv 1': 'TerraceTV1',
+        'terrace tv 2': 'TerraceTV2',
+    }
+    normalized = str(zone).strip().lower()
+    return tv_zones.get(normalized) or _ZONE_MAP.get(normalized)
 
 
 def _norm_source(src):
@@ -84,6 +151,12 @@ def _norm_source(src):
         return 'music'
     if 'bt' in s or 'bluetooth' in s:
         return 'bt'
+    if 'roku' in s:
+        return 'roku'
+    if s == 'hdmi':
+        return 'hdmi'
+    if 'display' in s:
+        return 'display'
     return None
 
 
@@ -114,35 +187,54 @@ def _norm_route_source(src):
 def _json_set_source(data):
     room = _norm_zone(data.get('zone'))
     source = _norm_source(data.get('source'))
-    if room not in ('PartyRoom', 'YogaStudio') or not source:
+    source_name = data.get('source')
+    if not room or not source:
         return False
-    if source == 'music':
-        return _call_source_fn(room, 'MusicPlayer')
-    if source == 'bt':
-        return _call_source_fn(room, 'BTPlate')
-    return False
+
+    success = False
+    if room == 'PartyRoom':
+        if source == 'music':
+            av.PartyRoomSelectMusicPlayer()
+            success = True
+        elif source == 'bt':
+            av.PartyRoomSelectBTPlate()
+            success = True
+        elif source == 'roku':
+            av.PartyRoomSelectRoku()
+            success = True
+        elif source == 'hdmi':
+            av.PartyRoomSelectHDMI()
+            success = True
+    elif room == 'YogaStudio':
+        if source == 'music':
+            av.YogaStudioSelectMusicPlayer()
+            success = True
+        elif source == 'bt':
+            av.YogaStudioSelectBTPlate()
+            success = True
+        elif source == 'display':
+            av.YogaStudioSelectDisplayAV()
+            success = True
+    elif room == 'TerraceGalleryTV1' and source == 'roku':
+        av.TerraceSelectRoku1()
+        success = True
+    elif room == 'TerraceGalleryTV2' and source == 'roku':
+        av.TerraceSelectRoku2()
+        success = True
+
+    if success:
+        _send_json_feedback('SourceFeedback', {
+            'zone': data.get('zone') or _ZONE_DISPLAY_MAP.get(room, room),
+            'source': source_name,
+        })
+    return success
 
 
-def _call_source_fn(room, src):
-    fn_map = {
-        'PartyRoom': {
-            'MusicPlayer': av.PartyRoomSelectMusicPlayer,
-            'BTPlate': av.PartyRoomSelectBTPlate,
-        },
-        'YogaStudio': {
-            'MusicPlayer': av.YogaStudioSelectMusicPlayer,
-            'BTPlate': av.YogaStudioSelectBTPlate,
-        },
-    }
-    fn = fn_map.get(room, {}).get(src)
-    if not fn:
-        return False
-    fn()
-    return True
+_TV_LOCAL_KEYS = ('PartyRoomTV', 'YogaStudioTV', 'TerraceTV1', 'TerraceTV2')
 
 
 def _json_set_volume(data):
-    room = _norm_zone(data.get('zone'))
+    room = _norm_audio_zone(data.get('zone'))
     if room is None:
         return False
     try:
@@ -150,7 +242,10 @@ def _json_set_volume(data):
     except Exception:
         return False
     try:
-        av.SetVolume(room, level)
+        if room in _TV_LOCAL_KEYS:
+            av.SetTVLocalVolume(room, level)
+        else:
+            av.SetVolume(room, level)
         return True
     except Exception as e:
         print(f'Remote JSON volume error: {e}')
@@ -158,7 +253,7 @@ def _json_set_volume(data):
 
 
 def _json_set_mute(data):
-    room = _norm_zone(data.get('zone'))
+    room = _norm_audio_zone(data.get('zone'))
     if room is None:
         return False
     state = data.get('state')
@@ -171,7 +266,10 @@ def _json_set_mute(data):
     if not isinstance(state, bool):
         return False
     try:
-        av.SetMute(room, state)
+        if room in _TV_LOCAL_KEYS:
+            av.SetTVLocalMute(room, state)
+        else:
+            av.SetMute(room, state)
         return True
     except Exception as e:
         print(f'Remote JSON mute error: {e}')
@@ -179,11 +277,14 @@ def _json_set_mute(data):
 
 
 def _json_toggle_mute(data):
-    room = _norm_zone(data.get('zone'))
+    room = _norm_audio_zone(data.get('zone'))
     if room is None:
         return False
     try:
-        new_state = av.ToggleMute(room)
+        if room in _TV_LOCAL_KEYS:
+            new_state = av.ToggleTVLocalMute(room)
+        else:
+            new_state = av.ToggleMute(room)
     except Exception as e:
         print(f'Remote JSON toggle mute error: {e}')
         return False
@@ -205,6 +306,34 @@ def _json_set_power(data):
     return _handle_power(code, state_str)
 
 
+def _norm_tv_zone(zone):
+    if not zone:
+        return None
+    return _TV_ZONE_MAP.get(str(zone).strip().lower())
+
+
+def _json_set_tv_power(data):
+    zone_raw = data.get('zone')
+    target = _norm_tv_zone(zone_raw)
+    state = data.get('state')
+    if not target or state is None:
+        return False
+    state_str = str(state).strip().upper()
+    if state_str in ('ON', 'TRUE', '1'):
+        state_str = 'ON'
+    elif state_str in ('OFF', 'FALSE', '0'):
+        state_str = 'OFF'
+    else:
+        return False
+    ok = _handle_tv(target, state_str)
+    if ok:
+        _send_json_feedback('PowerFeedback', {
+            'zone': zone_raw,
+            'state': 'On' if state_str == 'ON' else 'Off',
+        })
+    return ok
+
+
 def _json_route_audio(data):
     src = _norm_route_source(data.get('source_zone') or data.get('source'))
     dest = _norm_zone(data.get('dest_zone') or data.get('zone'))
@@ -218,6 +347,56 @@ def _json_route_audio(data):
         return False
 
 
+# Level 1 Main-TP sends ControlRoku with tokens matching Roku ECP key names,
+# plus app-launch aliases Hulu / YouTube (mapped to LaunchHulu / LaunchYouTube).
+# Zones owned by this processor (display names from Level 1):
+#   "Party Room"            -> Party Room Roku
+#   "Terrace Gallery TV 1"  -> Terrace TV1 Roku
+#   "Terrace Gallery TV 2"  -> Terrace TV2 Roku
+_ROKU_ZONE_HANDLERS = {
+    'PartyRoom': 'PartyRoomRokuKey',
+    'TerraceGalleryTV1': 'TerraceRokuKey1',
+    'TerraceGalleryTV2': 'TerraceRokuKey2',
+}
+
+_ROKU_COMMAND_MAP = {
+    'rev': 'Rev',
+    'fwd': 'Fwd',
+    'play': 'Play',
+    'up': 'Up',
+    'down': 'Down',
+    'left': 'Left',
+    'right': 'Right',
+    'select': 'Select',
+    'home': 'Home',
+    'back': 'Back',
+    'hulu': 'LaunchHulu',
+    'launchhulu': 'LaunchHulu',
+    'youtube': 'LaunchYouTube',
+    'launchyoutube': 'LaunchYouTube',
+}
+
+
+def _json_control_roku(data):
+    room = _norm_zone(data.get('zone'))
+    cmd = data.get('command')
+    if not room or not cmd:
+        return False
+    fn_name = _ROKU_ZONE_HANDLERS.get(room)
+    action = _ROKU_COMMAND_MAP.get(str(cmd).strip().lower())
+    if not fn_name or not action:
+        return False
+    fn = getattr(av, fn_name, None)
+    if not callable(fn):
+        print(f'Remote: ControlRoku handler missing: {fn_name}')
+        return False
+    try:
+        return bool(fn(action))
+    except Exception as e:
+        print(f'Remote JSON ControlRoku error: {e}')
+        return False
+
+
 def _dispatch_json(cmd, data):
     cmd_key = str(cmd).strip().lower()
     handlers = {
@@ -226,7 +405,10 @@ def _dispatch_json(cmd, data):
         'setmute': _json_set_mute,
         'togglemute': _json_toggle_mute,
         'setpower': _json_set_power,
+        'settvpower': _json_set_tv_power,
         'routeaudio': _json_route_audio,
+        'controlroku': _json_control_roku,
+        'syncfeedback': lambda data: av.HandleSyncFeedbackRequest(),
     }
     handler = handlers.get(cmd_key)
     if not handler:
@@ -498,9 +680,24 @@ def Start():
     _server.StartListen()
     print(f'Remote Control: Listening on TCP {SERVER_PORT}')
 
-    # Register for AV state changes to push feedback
-    av.RegisterUICallback('VolumeChanged', lambda room, level: _send(f'EVT,VOLUME,{room.upper()},{level}'))
-    av.RegisterUICallback('MuteChanged', lambda room, muted: _send(f'EVT,MUTE,{room.upper()},{"ON" if muted else "OFF"}'))
-    av.RegisterUICallback('PowerChanged', lambda room, power: _send(f'EVT,POWER,{room.upper()},{"ON" if power else "OFF"}'))
-    av.RegisterUICallback('SourceChanged', lambda room, source: _send(f'EVT,SRC,{room.upper()},{source.upper()}'))
+    # Register for AV state changes to push feedback (TCP EVT + Level 1 JSON)
+    av.RegisterUICallback('VolumeChanged', lambda room, level: (
+        _send(f'EVT,VOLUME,{room.upper()},{level}'),
+        _send_json_feedback('VolumeFeedback', {'zone': room, 'level': level}),
+    ))
+    av.RegisterUICallback('MuteChanged', lambda room, muted: (
+        _send(f'EVT,MUTE,{room.upper()},{"ON" if muted else "OFF"}'),
+        _send_json_feedback('MuteFeedback', {'zone': room, 'state': 'On' if muted else 'Off'}),
+    ))
+    av.RegisterUICallback('PowerChanged', lambda room, power: (
+        _send(f'EVT,POWER,{room.upper()},{"ON" if power else "OFF"}'),
+        _send_json_feedback('PowerFeedback', {'zone': room, 'state': 'On' if power else 'Off'}),
+    ))
+    av.RegisterUICallback('SourceChanged', lambda room, source: (
+        _send(f'EVT,SRC,{room.upper()},{str(source).upper()}'),
+        _send_json_feedback('SourceFeedback', {
+            'zone': room,
+            'source': _SOURCE_DISPLAY.get(source, source),
+        }),
+    ))
 
